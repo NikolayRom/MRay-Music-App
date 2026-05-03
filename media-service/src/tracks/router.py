@@ -9,7 +9,7 @@ from src.storage.client import s3_storage
 router = APIRouter()
 
 @router.get("/stream/{object_name}")
-async def stream_from_minio(request: Request, object_name: str):
+async def stream_from_minio(request: Request, object_name: str) -> StreamingResponse:
     range_header = request.headers.get("range")
 
     s3_client = await s3_storage.get_client().__aenter__()

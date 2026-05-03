@@ -5,8 +5,8 @@ class S3Client:
     def __init__(self):
         self.session = aioboto3.Session()
         self.url = settings.MINIO_URL
-        self.access_key = settings.MINIO_ACCESS_KEY
-        self.secret_key = settings.MINIO_SECRET_KEY
+        self.access_key = settings.MINIO_ROOT_USER
+        self.secret_key = settings.MINIO_ROOT_PASSWORD
         self.bucket_name = settings.MINIO_BUCKET_NAME
 
     def get_client(self):
