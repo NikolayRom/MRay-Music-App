@@ -11,7 +11,7 @@ class Track(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     title: Mapped[str] = mapped_column(String(500), index=True)
-    artist_id: Mapped[str] = mapped_column(ForeignKey('artists.id'), index=True)
+    artist_id: Mapped[Optional[str]] = mapped_column(ForeignKey('artists.id'), index=True)
     album_id: Mapped[Optional[str]] = mapped_column(ForeignKey('albums.id'), index=True)
     s3_key: Mapped[str] = mapped_column(String(500), unique=True)
     image_key: Mapped[Optional[str]] = mapped_column(String(500))

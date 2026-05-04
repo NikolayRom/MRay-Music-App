@@ -3,7 +3,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from src.config import settings
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from src.models import Base
 
 engine = create_async_engine(url=settings.POSTGRES_URL)
 
