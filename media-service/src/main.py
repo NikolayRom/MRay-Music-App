@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from src.tracks.router import router
-from database import lifespan
+from src.database import lifespan
 
 app = FastAPI(lifespan=lifespan)
 

@@ -1,9 +1,9 @@
 from collections.abc import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from config import settings
+from src.config import settings
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from models import Base
+from src.models import Base
 
 engine = create_async_engine(url=settings.POSTGRES_URL)
 
