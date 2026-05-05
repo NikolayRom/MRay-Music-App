@@ -64,7 +64,15 @@ async def seed_music():
                     artist_name = audio.get('TPE1')
                     album_name = audio.get('TALB')
                     duration = timedelta(seconds=int(audio.info.length))
-                    genre = str(audio.get('TCON', 'Unknown'))
+                    genres = audio.get('TCON')
+                    if not genres:
+                        genre = ['Unknown']
+                    else:
+                        genres = str(genres)
+                        for sep in [',', '&']:
+                            genres = genres.replace(sep, ' ')
+                    
+                        genre = [g for g in genres.split()]
 
                     image_key = None
                     tags = ID3(io.BytesIO(raw_data))
@@ -85,18 +93,11 @@ async def seed_music():
                 except Exception as e:
                     print('Invalid tags')
                     continue
-
-                print('-'*20)
-                print(artist_name)
-                print(album_name)
-                print('-'*20)
                 
                 if artist_name:
-                    artist_name = str(artist_name)
-                    artist = await get_or_create_artist(session, artist_name)
+                    artist = await get_or_create_artist(session, str(artist_name))
                     if album_name:
-                        album_name = str(album_name)
-                        album = await get_or_create_album(session, album_name, artist.id)
+                        album = await get_or_create_album(session, str(album_name), artist.id)
 
                 artist_id = None if not artist_name else artist.id
                 album_id = None if not album_name else album.id
