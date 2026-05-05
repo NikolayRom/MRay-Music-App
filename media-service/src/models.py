@@ -11,8 +11,8 @@ class Track(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     title: Mapped[str] = mapped_column(String(500), index=True)
-    artist_id: Mapped[Optional[str]] = mapped_column(ForeignKey('artists.id'), index=True)
-    album_id: Mapped[Optional[str]] = mapped_column(ForeignKey('albums.id'), index=True)
+    artist_id: Mapped[Optional[int]] = mapped_column(ForeignKey('artists.id'), index=True)
+    album_id: Mapped[Optional[int]] = mapped_column(ForeignKey('albums.id'), index=True)
     s3_key: Mapped[str] = mapped_column(String(500), unique=True)
     image_key: Mapped[Optional[str]] = mapped_column(String(500))
     genre: Mapped[List[str]] = mapped_column(ARRAY(String), default=[])
@@ -39,7 +39,7 @@ class Album(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(index=True)
     image_key: Mapped[Optional[str]] = mapped_column(String(500), unique=True)
-    artist_id: Mapped[str] = mapped_column(ForeignKey('artists.id'), index=True)
+    artist_id: Mapped[int] = mapped_column(ForeignKey('artists.id'), index=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
     artist: Mapped['Artist'] = relationship(back_populates='albums')
