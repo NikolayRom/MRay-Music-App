@@ -43,6 +43,8 @@ services:
       - MINIO_ROOT_USER=${MINIO_ROOT_USER}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
       - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME}
+      - MINIO_MAX_FILE_SIZE=${MINIO_MAX_FILE_SIZE}
+      - MINIO_COVER_ROOT=${MINIO_COVER_ROOT}
     command: fastapi dev src/main.py --host 0.0.0.0 --port 8000
     depends_on:
       - minio
