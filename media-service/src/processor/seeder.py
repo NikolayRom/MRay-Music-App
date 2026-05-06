@@ -4,32 +4,11 @@ import io
 import asyncio
 from datetime import timedelta
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from src.models import *
 from src.database import async_session_maker
 from src.storage.client import s3_storage
-
-async def get_or_create_artist(session: AsyncSession, name: str):
-    result = await session.execute(select(Artist).where(Artist.name==name))
-    artist = result.scalar_one_or_none()
-
-    if not artist:
-        artist = Artist(name=name)
-        session.add(artist)
-        await session.flush()
-        print('Successful artist commit')
-    return artist
-
-async def get_or_create_album(session: AsyncSession, name: str, artist_id: int):
-    result = await session.execute(select(Album).where(Album.name==name, Album.artist_id==artist_id))
-    album = result.scalar_one_or_none()
-
-    if not album:
-        album = Album(name=name, artist_id=artist_id)
-        session.add(album)
-        await session.flush()
-        print('Successful album commit')
-    return album
+from src.config import settings
+from src.tracks.utils import get_or_create_album, get_or_create_artist
 
 async def seed_music():
     async with s3_storage.get_client() as s3:
@@ -41,12 +20,12 @@ async def seed_music():
         
             for obj in response['Contents']:
                 file_key = obj['Key']
-                if not file_key.endswith('.mp3') or 'covers' in file_key:
+                if not file_key.endswith('.mp3') or f'{settings.MINIO_COVER_ROOT}' in file_key:
                     continue
 
                 existing_track = await session.execute(select(Track).where(Track.s3_key==file_key))
                 if existing_track.scalar_one_or_none():
-                    print(f'Track Already exist ({file_key})')
+                    print(f'Track Already exist')
                     continue
 
                 s3_obj = await s3.get_object(
@@ -81,7 +60,7 @@ async def seed_music():
                         pic = pics[0]
                         image_data = pic.data
                         image_ext = 'jpg' if pic.mime == 'image/jpeg' else 'png'
-                        image_key = f'covers/{file_key}.{image_ext}'
+                        image_key = f'{settings.MINIO_COVER_ROOT}/{file_key.rsplit('.', 1)[0]}.{image_ext}'
 
                         await s3.put_object(
                             Bucket=s3_storage.bucket_name,
