@@ -5,6 +5,8 @@ class Settings(BaseSettings):
     MINIO_ROOT_USER: str
     MINIO_ROOT_PASSWORD: str 
     MINIO_BUCKET_NAME: str
+    MINIO_MAX_FILE_SIZE: int
+    MINIO_COVER_ROOT: str
 
     POSTGRES_URL: str
 
