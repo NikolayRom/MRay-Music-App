@@ -1,14 +1,12 @@
 from mutagen.mp3 import MP3
-from mutagen.id3 import ID3
 import io
 import asyncio
-from datetime import timedelta
 from sqlalchemy import select
 from src.models import *
 from src.database import async_session_maker
 from src.storage.client import s3_storage
 from src.config import settings
-from src.tracks.utils import get_or_create_album, get_or_create_artist
+from src.tracks.service import *
 
 async def seed_music():
     async with s3_storage.get_client() as s3:
@@ -36,59 +34,24 @@ async def seed_music():
 
                 raw_data = await s3_obj['Body'].read()
                 buffer = io.BytesIO(raw_data)
-                try:
-                    audio = MP3(buffer)
-
-                    title = str(audio.get('TIT2', file_key))
-                    artist_name = audio.get('TPE1')
-                    album_name = audio.get('TALB')
-                    duration = timedelta(seconds=int(audio.info.length))
-                    genres = audio.get('TCON')
-                    if not genres:
-                        genre = ['Unknown']
-                    else:
-                        genres = str(genres)
-                        for sep in [',', '&']:
-                            genres = genres.replace(sep, ' ')
-                    
-                        genre = [g for g in genres.split()]
-
-                    image_key = None
-                    tags = ID3(io.BytesIO(raw_data))
-                    pics = tags.getall('APIC')
-                    if pics:
-                        pic = pics[0]
-                        image_data = pic.data
-                        image_ext = 'jpg' if pic.mime == 'image/jpeg' else 'png'
-                        image_key = f'{settings.MINIO_COVER_ROOT}/{file_key.rsplit('.', 1)[0]}.{image_ext}'
-
-                        await s3.put_object(
-                            Bucket=s3_storage.bucket_name,
-                            Key=image_key,
-                            Body=image_data,
-                            ContentType=pic.mime,
-                        )
-
-                except Exception as e:
-                    print('Invalid tags')
-                    continue
+                audio = MP3(buffer)
                 
-                if artist_name:
-                    artist = await get_or_create_artist(session, str(artist_name))
-                    if album_name:
-                        album = await get_or_create_album(session, str(album_name), artist.id)
-
-                artist_id = None if not artist_name else artist.id
-                album_id = None if not album_name else album.id
+                artist_and_album_id = await get_track_artist_and_album_id(
+                    artist_name=get_track_artist_name(audio=audio),
+                    album_name=get_track_album_name(audio=audio),
+                    session=session
+                )
+                artist_id = artist_and_album_id[0]
+                album_id = artist_and_album_id[1]
 
                 track = Track(
-                    title=title,
+                    title=get_track_title(key=file_key, audio=audio, is_seeder=True),
                     s3_key=file_key,
-                    image_key=image_key,
-                    duration=duration,
+                    image_key=await get_track_image_key(key=file_key, buffer=buffer),
+                    duration=get_track_duration(audio=audio),
                     artist_id=artist_id,
                     album_id=album_id,
-                    genre=genre,
+                    genre=get_track_genre(audio=audio, separators=[',', '&']),
                 )
                 session.add(track)
                 print('Successful track commit')

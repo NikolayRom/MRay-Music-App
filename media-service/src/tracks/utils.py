@@ -1,6 +1,6 @@
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import select
+from sqlalchemy import select
 from src.models import Artist, Album
 
 def gen_uuid():
@@ -12,9 +12,6 @@ def get_id3_size(header_bytes: bytes) -> int:
            ((header_bytes[7] & 0x7f) << 14) | \
            ((header_bytes[6] & 0x7f) << 21)
     return size + 10
-
-def add_duration_seconds(sql_model):
-    setattr(sql_model, 'duration_seconds', int(sql_model.duration.total_seconds()))
 
 async def get_or_create_artist(session: AsyncSession, name: str):
     result = await session.execute(select(Artist).where(Artist.name==name))

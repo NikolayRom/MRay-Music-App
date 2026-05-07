@@ -1,6 +1,7 @@
-from pydantic import BaseModel, ConfigDict
-from typing import List, Optional
-from datetime import datetime
+from pydantic import BaseModel, ConfigDict, computed_field, Field
+from pydantic.json_schema import SkipJsonSchema
+from typing import List, Optional, Annotated
+from datetime import datetime, timedelta
 
 class ArtistRead(BaseModel):
     id: int
@@ -24,13 +25,24 @@ class TrackRead(BaseModel):
     title: str
     image_key: Optional[str] = None
     genre: List[str]
-    duration_seconds: int
+    duration: Annotated[timedelta, Field(exclude=True), SkipJsonSchema()]
     created_at: datetime
 
     artist: Optional[ArtistRead] = None    
     album: Optional[AlbumRead] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+    @computed_field
+    @property
+    def duration_seconds(self) -> int:
+        return int(self.duration.total_seconds())
+
+class TracksAllRead(BaseModel):
+    items: List[TrackRead]
+    has_more: bool
+    next_cursor: Optional[int] = None
+    limit: int
 
 class TrackUpdate(BaseModel):
     title: str
