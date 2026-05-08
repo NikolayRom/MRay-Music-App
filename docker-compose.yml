@@ -45,8 +45,8 @@ services:
       - POSTGRES_HOST=${POSTGRES_HOST}  
       - POSTGRES_PORT=${POSTGRES_PORT}
       - POSTGRES_URL=${POSTGRES_URL}
-      - TRACK_MAX_GET_SIZE=${TRACK_MAX_GET_SIZE}
-      - TRACK_DEFAULT_GET_SIZE=${TRACK_DEFAULT_GET_SIZE}
+      - MAX_GET_SIZE=${MAX_GET_SIZE}
+      - DEFAULT_GET_SIZE=${DEFAULT_GET_SIZE}
     command: fastapi dev src/main.py --host 0.0.0.0 --port 8000
     depends_on:
       - minio

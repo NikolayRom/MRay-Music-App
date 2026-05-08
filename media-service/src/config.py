@@ -10,8 +10,8 @@ class Settings(BaseSettings):
 
     POSTGRES_URL: str
 
-    TRACK_MAX_GET_SIZE: int
-    TRACK_DEFAULT_GET_SIZE: int
+    MAX_GET_SIZE: int
+    DEFAULT_GET_SIZE: int
 
     model_config = SettingsConfigDict(env_file='../.env', extra='ignore')
 
