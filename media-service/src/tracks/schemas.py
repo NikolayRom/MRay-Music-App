@@ -2,23 +2,8 @@ from pydantic import BaseModel, ConfigDict, computed_field, Field
 from pydantic.json_schema import SkipJsonSchema
 from typing import List, Optional, Annotated
 from datetime import datetime, timedelta
-
-class ArtistRead(BaseModel):
-    id: int
-    name: str
-    image_key: Optional[str] = None
-    created_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
-    
-class AlbumRead(BaseModel):
-    id: int
-    name: str
-    image_key: Optional[str] = None
-    artist_id: int
-    created_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
+from src.schemas.common import AlbumShortRead
+from src.schemas.common import ArtistShortRead
 
 class TrackRead(BaseModel):
     id: int
@@ -28,8 +13,8 @@ class TrackRead(BaseModel):
     duration: Annotated[timedelta, Field(exclude=True), SkipJsonSchema()]
     created_at: datetime
 
-    artist: Optional[ArtistRead] = None    
-    album: Optional[AlbumRead] = None
+    artist: Optional[ArtistShortRead] = None    
+    album: Optional[AlbumShortRead] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -44,10 +29,18 @@ class TracksAllRead(BaseModel):
     next_cursor: Optional[int] = None
     limit: int
 
+class TrackPost(BaseModel):
+    title: Optional[str] = None
+    artist_id: Optional[int] = None
+    album_id: Optional[int] = None
+    genre: Optional[List[str]] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
 class TrackUpdate(BaseModel):
     title: str
-    artist_id: Optional[int]
-    album_id: Optional[int]
+    artist_id: int
+    album_id: int
     genre: List[str]
 
     model_config = ConfigDict(from_attributes=True)

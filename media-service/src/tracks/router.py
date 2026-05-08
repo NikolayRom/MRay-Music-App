@@ -1,28 +1,30 @@
 from fastapi import APIRouter, HTTPException, status, Request, Depends, UploadFile, File, Query
 from fastapi.responses import StreamingResponse
 from src.storage.client import s3_storage
-from sqlalchemy import select, delete
+from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database import get_async_session
 from src.models import Track
-from src.tracks.schemas import TrackRead, TrackUpdate, TrackPatch, TracksAllRead
+from src.tracks.schemas import TrackRead, TrackPost, TrackUpdate, TrackPatch, TracksAllRead
 from typing import List, Optional
 from mutagen.mp3 import MP3
 import io
 from src.tracks.utils import gen_uuid
 from src.tracks.service import *
+from src.common.s3_utils import *
+from src.common.validators import *
 
 router = APIRouter()
 
-@router.get('/', response_model=TracksAllRead)
+@router.get('/tracks', response_model=TracksAllRead)
 async def get_all_tracks(
     request: Request,
     search: Optional[str] = Query(None, min_length=2, description="Search by title. Special characters (e.g., &) must be URL-encoded. Example: 'Rock%20%26%20Roll'"),
     genre: Optional[List[str]] = Query(None),
     artist_id: Optional[int] = None,
     album_id: Optional[int] = None,
-    limit: int = Query(settings.TRACK_DEFAULT_GET_SIZE, ge=1, le=settings.TRACK_MAX_GET_SIZE),
+    limit: int = Query(settings.DEFAULT_GET_SIZE, ge=1, le=settings.MAX_GET_SIZE),
     cursor: Optional[int] = Query(None, description='Last track id'),
     session: AsyncSession = Depends(get_async_session)
 ):
@@ -60,18 +62,26 @@ async def get_all_tracks(
         limit=limit
     )
 
-@router.get('/{id}', response_model=TrackRead)
+@router.get('/track/{id}', response_model=TrackRead)
 async def get_track(request: Request, id: int, session: AsyncSession = Depends(get_async_session)):
     result = await session.execute(select(Track).where(Track.id==id).options(selectinload(Track.album), selectinload(Track.artist)))
     track = result.scalar_one_or_none()
     check_object_exist(track)
     return track
 
-@router.post('/', response_model=TrackRead)
-async def post_track(request: Request, file_track: UploadFile = File(..., description='upload mp3 track'), file_cover: UploadFile | None = None, session: AsyncSession = Depends(get_async_session)):
+@router.post('/track', response_model=TrackRead)
+async def post_track(
+    request: Request,
+    track_data: TrackPost, 
+    file_track: UploadFile = File(..., description='upload mp3 track'),
+    file_cover: Optional[UploadFile] = None,
+    session: AsyncSession = Depends(get_async_session)
+):
     
     check_file_size(file=file_track)
     check_file_format(formats=['mp3'], file=file_track)
+
+    await check_artist_and_album_id_for_track(artist_id=track_data.artist_id, album_id=track_data.album_id, session=session)
 
     file_key = f'{gen_uuid()}_{file_track.filename.rsplit('.', 1)[0]}'
 
@@ -93,21 +103,19 @@ async def post_track(request: Request, file_track: UploadFile = File(..., descri
 
         try:
             artist_and_album_id = await get_track_artist_and_album_id(
-                artist_name=get_track_artist_name(audio=audio),
-                album_name=get_track_album_name(audio=audio),
+                artist_name=get_track_artist_name(audio=audio) if not track_data.artist_id else None,
+                album_name=get_track_album_name(audio=audio) if not track_data.album_id else None,
                 session=session
             )
-            artist_id = artist_and_album_id[0]
-            album_id = artist_and_album_id[1]
 
             track = Track(
-                title=get_track_title(key=file_key, audio=audio),
+                title=get_track_title(key=file_key, audio=audio) if not track_data.title else track_data.title,
                 s3_key=file_key,
                 image_key=await get_track_image_key(key=file_key, buffer=buffer, file=file_cover),
                 duration=get_track_duration(audio=audio),
-                artist_id=artist_id,
-                album_id=album_id,
-                genre=get_track_genre(audio=audio, separators=[',', '&']),
+                artist_id=artist_and_album_id[0] if not track_data.artist_id else track_data.artist_id,
+                album_id=artist_and_album_id[1] if not track_data.album_id else track_data.album_id,
+                genre=get_track_genre(audio=audio, separators=[',', '&']) if not track_data.genre else track_data.genre,
             )
         except:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Can\'t read metadata from mp3 file')
@@ -122,16 +130,18 @@ async def post_track(request: Request, file_track: UploadFile = File(..., descri
     except Exception:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Can\'t upload this mp3 file')
 
-@router.put('/{track_id}', response_model=TrackRead)
+@router.put('/track/{track_id}', response_model=TrackRead)
 async def put_track(request: Request, track_id: int, track_data: TrackUpdate, file: UploadFile = File(..., description='upload cover for mp3 track'), session: AsyncSession = Depends(get_async_session)):
     track = await session.get(Track, track_id)
     check_object_exist(track)
     check_content_type_format(formats=["image/jpeg", "image/png", "image/jpg"], file=file)
     
+    await check_artist_and_album_id_for_track(artist_id=track_data.artist_id, album_id=track_data.album_id, session=session)
+
     try:
 
         check_file_size(file=file)
-        image_key = get_track_image_key_from_file(key=track.s3_key, file=file)
+        image_key = get_image_key_from_file(key=track.s3_key, file=file)
 
         if track.image_key:
             await default_minio_data_delete(key=track.image_key)
@@ -144,10 +154,9 @@ async def put_track(request: Request, track_id: int, track_data: TrackUpdate, fi
 
     try:
         track.title = track_data.title
-        track.artist_id = track.artist_id if not track_data.artist_id else track_data.artist_id
-        track.album_id = track.album_id if not track_data.album_id else track_data.album_id
+        track.artist_id = track_data.artist_id
+        track.album_id = track_data.album_id
         track.genre = track_data.genre
-    
     except Exception:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Invalid parameters for track')
     
@@ -155,18 +164,18 @@ async def put_track(request: Request, track_id: int, track_data: TrackUpdate, fi
     await session.refresh(track)
     return track
 
-@router.patch('/{track_id}', response_model=TrackRead)
+@router.patch('/track/{track_id}', response_model=TrackRead)
 async def patch_track(request: Request, track_id: int, track_data: TrackPatch, file: UploadFile | None = None, session: AsyncSession = Depends(get_async_session)):
     track = await session.get(Track, track_id)
-
     check_object_exist(track)
+    await check_artist_and_album_id_for_track(session=session, artist_id=track_data.artist_id, album_id=track_data.album_id)
     if file:
 
         check_content_type_format(formats=["image/jpeg", "image/png", "image/jpg"], file=file)
         try:
 
             check_file_size(file=file)
-            image_key = get_track_image_key_from_file(key=track.s3_key, file=file)
+            image_key = get_image_key_from_file(key=track.s3_key, file=file)
 
             if track.image_key:
                 await default_minio_data_delete(key=track.image_key)
@@ -189,7 +198,7 @@ async def patch_track(request: Request, track_id: int, track_data: TrackPatch, f
     await session.refresh(track)
     return track
 
-@router.delete('/{track_id}', response_model=TrackRead)
+@router.delete('/track/{track_id}', response_model=TrackRead)
 async def delete_track(request: Request, track_id: int, session: AsyncSession = Depends(get_async_session)):
     track = await session.get(Track, track_id)
 
@@ -197,7 +206,7 @@ async def delete_track(request: Request, track_id: int, session: AsyncSession = 
     if track.image_key:
         await default_minio_data_delete(key=track.image_key)
     await default_minio_data_delete(key=track.s3_key)
-    await session.execute(delete(Track).where(Track.id==track_id))
+    await session.delete(track)
     await session.commit()
     return track
 
