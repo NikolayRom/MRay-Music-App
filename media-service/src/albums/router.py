@@ -11,6 +11,7 @@ from src.albums.service import *
 from src.albums.utils import *
 from src.common.s3_utils import *
 from src.common.validators import *
+from src.common.logger import logger
 
 router = APIRouter()
 
@@ -36,6 +37,9 @@ async def get_all_albums(
     query = query.order_by(Album.id).limit(limit+1)
     result = await session.execute(query)
     albums = result.scalars().all()
+
+    if not albums:
+        logger.warning(f'Albums with selected parameters (limit:{limit}, cursor:{cursor}, search:{search}, artist_id:{artist_id} not found')
 
     has_more = len(albums) > limit
     if has_more:
@@ -69,10 +73,12 @@ async def post_album(request: Request, album_data: AlbumPost, file: Optional[Upl
         image_key=None,
         artist_id=artist_id
     )
+    logger.success(f'Successful creation of new album {album}')
 
     session.add(album)
     await session.commit()
     await session.refresh(album)
+    logger.info(f'Save new album {album} by {artist_id} artist id with {album.id} id')
 
     if file:
         image_key = get_image_key_from_file(key=album.id, file=file)
@@ -82,6 +88,7 @@ async def post_album(request: Request, album_data: AlbumPost, file: Optional[Upl
             await session.commit()
             await session.refresh(album)
         except Exception:
+            logger.error('Can\'t upload cover for album')
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Can\'t upload cover for album')
     
     return album
@@ -103,10 +110,13 @@ async def put_album(request: Request, album_data: AlbumUpdate, id: int, file: Up
         await streaming_minio_data_upload(key=image_key, content_type=file.content_type, file=file)
         album.image_key = image_key
     except Exception:
+        logger.error('Can\'t upload cover for album')
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Can\'t upload cover for album')
     
+    logger.success(f'Successful update {album} album with {album.id} id')
     await session.commit()
     await session.refresh(album)
+    logger.info(f'Save updated {album} album with {album.id} id')
     return album
 
 @router.patch('/album/{id}', response_model=AlbumRead)
@@ -128,10 +138,13 @@ async def patch_album(request: Request, id: int, album_data: Optional[AlbumPatch
             await streaming_minio_data_upload(key=image_key, content_type=file.content_type, file=file)
             album.image_key = image_key
         except Exception:
+            logger.error('Can\'t upload cover for album')
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Can\'t upload cover for album')
-    
+
+    logger.success(f'Successful patch {album} album with {album.id} id')    
     await session.commit()
     await session.refresh(album)
+    logger.info(f'Save updated {album} album with {album.id} id')
     return album
 
 @router.delete('/album/{id}', response_model=AlbumRead)
@@ -147,6 +160,7 @@ async def delete_album(request: Request, id: int, session: AsyncSession = Depend
         try:
             default_minio_data_delete(key=image_key)
         except Exception:
+            logger.error('Can\'t delete cover for album')
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Can\'t delete cover for album')
 
     if tracks:
@@ -156,9 +170,11 @@ async def delete_album(request: Request, id: int, session: AsyncSession = Depend
                     await default_minio_data_delete(key=track.image_key)
                 await default_minio_data_delete(key=track.s3_key)
         except Exception:
+            logger.error('Can\'t delete tracks for artist')
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Can\'t delete tracks for artist')
         
     await session.delete(album) 
     await session.commit()
+    logger.success(f'Successful delete {album} album with {album.id} id')
 
     return album

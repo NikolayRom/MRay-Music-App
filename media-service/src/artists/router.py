@@ -11,6 +11,7 @@ from src.artists.service import *
 from src.artists.utils import *
 from src.common.s3_utils import *
 from src.common.validators import *
+from src.common.logger import logger
 
 router = APIRouter()
 
@@ -32,6 +33,9 @@ async def get_all_artists(
     query = query.order_by(Artist.id).limit(limit+1)
     result = await session.execute(query)
     artists = result.scalars().all()
+
+    if not artists:
+        logger.warning(f'Artists with selected parameters (limit:{limit}, cursor:{cursor}, search:{search} not found')
 
     has_more = len(artists) > limit
     if has_more:
@@ -63,10 +67,12 @@ async def post_artist(request: Request, artist_obj: ArtistPost, file: Optional[U
         name=name,
         image_key=None
     )
+    logger.success(f'Successful creation of new artist {artist}')
 
     session.add(artist)
     await session.commit()
     await session.refresh(artist)
+    logger.info(f'Save new artist {artist} with {artist.id} id')
 
     if file:
         image_key = get_image_key_from_file(key=artist.id, file=file)
@@ -76,6 +82,7 @@ async def post_artist(request: Request, artist_obj: ArtistPost, file: Optional[U
             await session.commit()
             await session.refresh(artist)
         except Exception:
+            logger.error('Can\'t upload cover for artist')
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Can\'t upload cover for artist')
     
     return artist
@@ -97,10 +104,13 @@ async def put_artist(request: Request, id: int, artist_obj: ArtistUpdate, file: 
         await streaming_minio_data_upload(key=image_key, content_type=file.content_type, file=file)
         artist.image_key = image_key
     except Exception:
+        logger.error('Can\'t upload cover for artist')
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Can\'t upload cover for artist')
     
+    logger.success(f'Successful update for {artist} artist with {artist.id} id')
     await session.commit()
     await session.refresh(artist)
+    logger.info(f'Save updated artist {artist} with {artist.id} id')
     return artist
 
 @router.patch('/artist/{id}', response_model=ArtistRead)
@@ -121,10 +131,13 @@ async def patch_artist(request: Request, id: int, artist_obj: Optional[ArtistPat
             await streaming_minio_data_upload(key=image_key, content_type=file.content_type, file=file)
             artist.image_key = image_key
         except Exception:
+            logger.error('Can\'t upload cover for artist')
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Can\'t upload cover for artist')
     
+    logger.success(f'Successful patch for {artist} artist with {artist.id} id')
     await session.commit()
     await session.refresh(artist)
+    logger.info(f'Save updated {artist} artist with {artist.id} id')
     return artist
 
 @router.delete('/artist/{id}', response_model=ArtistRead)
@@ -150,9 +163,11 @@ async def delete_artist(request: Request, id: int, session: AsyncSession = Depen
         try:
             await default_minio_data_delete(key)
         except Exception as e:
+            logger.error(f'Error while trying to delete {key}: {e}')
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f'Error while trying to delete {key}: {e}')
 
     await session.delete(artist)
     await session.commit()
+    logger.success(f'Successful delete {artist} artist with {artist.id} id')
 
     return artist

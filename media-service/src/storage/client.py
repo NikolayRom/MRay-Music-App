@@ -1,5 +1,6 @@
 import aioboto3
 from src.config import settings
+from src.common.logger import logger
 
 class S3Client:
     def __init__(self):
@@ -10,6 +11,7 @@ class S3Client:
         self.bucket_name = settings.MINIO_BUCKET_NAME
 
     def get_client(self):
+        logger.info(f'Get S3 client session {self.session}')
         return self.session.client(
             "s3",
             endpoint_url=self.url,

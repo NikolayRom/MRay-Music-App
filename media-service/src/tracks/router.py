@@ -14,6 +14,7 @@ from src.tracks.utils import gen_uuid
 from src.tracks.service import *
 from src.common.s3_utils import *
 from src.common.validators import *
+from src.common.logger import logger
 
 router = APIRouter()
 
@@ -48,6 +49,9 @@ async def get_all_tracks(
 
     result = await session.execute(query)
     tracks = result.scalars().all()
+
+    if not tracks:
+        logger.warning(f'Tracks with selected parameters (limit:{limit}, cursor:{cursor}, search:{search}, artist_id:{artist_id}, album_id:{album_id}, genre:{genre}) not found')
 
     has_more = len(tracks) > limit
     if has_more:
@@ -90,10 +94,12 @@ async def post_track(
         try:
             read_size = await get_metadata_size(file=file_track)
         except Exception:
+            logger.error('Can\'t read metadata of mp3 file')
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Can\'t read metadata of mp3 file')
         try:
             await streaming_minio_data_upload(key=file_key, content_type='audio/mpeg', file=file_track)
         except Exception:
+            logger.error('Can\'t upload object from minio storage')
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Can\'t upload object from minio storage')
     
         metadata_content = await file_track.read(read_size)
@@ -117,17 +123,21 @@ async def post_track(
                 album_id=artist_and_album_id[1] if not track_data.album_id else track_data.album_id,
                 genre=get_track_genre(audio=audio, separators=[',', '&']) if not track_data.genre else track_data.genre,
             )
+            logger.success(f'Successful creation of new track: {track}')
         except:
+            logger.error('Can\'t read metadata from mp3 file')
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Can\'t read metadata from mp3 file')
 
         session.add(track)
         print('Successful track commit')
         await session.commit()
         await session.refresh(track)
+        logger.info(f'Save new track with {track.id} id')
 
         return track
 
     except Exception:
+        logger.error('Can\'t upload this mp3 file')
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Can\'t upload this mp3 file')
 
 @router.put('/track/{track_id}', response_model=TrackRead)
@@ -150,6 +160,7 @@ async def put_track(request: Request, track_id: int, track_data: TrackUpdate, fi
         track.image_key = image_key
 
     except Exception:
+        logger.error('Can\'t upload cover for mp3 track')
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Can\'t upload cover for mp3 track')
 
     try:
@@ -157,11 +168,14 @@ async def put_track(request: Request, track_id: int, track_data: TrackUpdate, fi
         track.artist_id = track_data.artist_id
         track.album_id = track_data.album_id
         track.genre = track_data.genre
+        logger.success(f'Successful update for track {track} with {track.id} id')
     except Exception:
+        logger.error('Invalid parameters for track')
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Invalid parameters for track')
     
     await session.commit()
     await session.refresh(track)
+    logger.info(f'Save updated track {track} with {track.id} id')
     return track
 
 @router.patch('/track/{track_id}', response_model=TrackRead)
@@ -184,18 +198,21 @@ async def patch_track(request: Request, track_id: int, track_data: TrackPatch, f
             track.image_key = image_key
 
         except Exception:
+            logger.error('Can\'t upload cover for mp3 track')
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Can\'t upload cover for mp3 track')
 
     try:
 
         for key, value in track_data.model_dump(exclude_unset=True).items():
             setattr(track, key, value)
-    
+        logger.success(f'Successful patch for track {track} with {track.id} id')
     except Exception:
+        logger.error('Invalid parameters for track')
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Invalid parameters for track')
     
     await session.commit()
     await session.refresh(track)
+    logger.info(f'Save updated track {track} with {track.id} id')
     return track
 
 @router.delete('/track/{track_id}', response_model=TrackRead)
@@ -208,6 +225,7 @@ async def delete_track(request: Request, track_id: int, session: AsyncSession = 
     await default_minio_data_delete(key=track.s3_key)
     await session.delete(track)
     await session.commit()
+    logger.success(f'Successful delete track {track} with {track.id} id')
     return track
 
 @router.get('/stream/{track_id}', response_class=StreamingResponse)
@@ -239,9 +257,11 @@ async def stream_from_minio(request: Request, track_id: int, session: AsyncSessi
             try:
                 async for chunk in s3_response["Body"]:
                     yield chunk
+                logger.success(f'Successful streaming end of track {track_id}')
             finally:
                 s3_response["Body"].close()
                 await s3_client.__aexit__(None, None, None)
+                logger.info(f'End streaming track {track_id}')
 
         return StreamingResponse(
             body_iterator(),
@@ -251,4 +271,5 @@ async def stream_from_minio(request: Request, track_id: int, session: AsyncSessi
 
     except Exception as e:
         await s3_client.__aexit__(None, None, None)
+        logger.error(f'Can\'t stream this mp3 file {track_id}')
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Can\'t stream this mp3 file')

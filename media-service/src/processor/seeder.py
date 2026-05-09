@@ -7,11 +7,13 @@ from src.database import async_session_maker
 from src.storage.client import s3_storage
 from src.config import settings
 from src.tracks.service import *
+from src.common.logger import logger
 
 async def seed_music():
     async with s3_storage.get_client() as s3:
         response = await s3.list_objects_v2(Bucket=s3_storage.bucket_name)
         if 'Contents' not in response:
+            logger.warning(f'SEEDER: No tracks in {s3_storage.bucket_name} from S3 storage are found')
             return
         
         async with async_session_maker() as session:
@@ -19,11 +21,12 @@ async def seed_music():
             for obj in response['Contents']:
                 file_key = obj['Key']
                 if not file_key.endswith('.mp3') or f'{settings.MINIO_COVER_ROOT}' in file_key:
+                    logger.warning(f'SEEDER: Found {file_key}, expected .mp3 track, skip object')
                     continue
 
                 existing_track = await session.execute(select(Track).where(Track.s3_key==file_key))
                 if existing_track.scalar_one_or_none():
-                    print(f'Track Already exist')
+                    logger.warning(f'SEEDER: Track {existing_track} already exist')
                     continue
 
                 s3_obj = await s3.get_object(
@@ -53,11 +56,12 @@ async def seed_music():
                     album_id=album_id,
                     genre=get_track_genre(audio=audio, separators=[',', '&']),
                 )
+                logger.success(f'SEEDER: Successful creation of new {track} track')
                 session.add(track)
-                print('Successful track commit')
+                logger.info(f'SEEDER: Add new {track} track')
 
             await session.commit()
-            print('End of initialize')
+            logger.success(f'SEEDER: Successful end of initialize, save all tracks')
 
 if __name__  == '__main__':
     asyncio.run(seed_music())
