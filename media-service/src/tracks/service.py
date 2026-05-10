@@ -1,7 +1,6 @@
 from src.config import settings
-from fastapi import UploadFile, File, HTTPException, status
+from fastapi import UploadFile, File, HTTPException, status, Form
 from typing import List, Optional
-from src.tracks.utils import get_id3_size
 from src.storage.client import s3_storage
 from src.models import Album, Artist
 from mutagen.id3 import ID3
@@ -10,10 +9,11 @@ from io import BytesIO
 from datetime import timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.tracks.utils import get_or_create_album, get_or_create_artist
+from src.tracks.utils import get_or_create_album, get_or_create_artist, get_id3_size
 from src.common.s3_utils import *
 from src.common.validators import *
 from src.common.logger import logger
+from src.tracks.schemas import TrackPost, TrackUpdate, TrackPatch
 
 def check_file_size(file: UploadFile = File(...)):
     if file.size and file.size > settings.MINIO_MAX_FILE_SIZE:
@@ -32,10 +32,10 @@ def check_content_type_format(formats: List[str], file: UploadFile = File(...)):
 
 async def check_artist_and_album_id_for_track(session: AsyncSession, artist_id: Optional[int] = None, album_id: Optional[int] = None) -> None:
     if artist_id:
-        check_object_exist(session.get(Artist, artist_id))
+        check_object_exist(await session.get(Artist, artist_id))
 
     if album_id:
-        check_object_exist(session.get(Album, album_id))
+        check_object_exist(await session.get(Album, album_id))
 
     if album_id and not artist_id:
         logger.error(f'Album id {album_id} can\'t be selected without artist id')
@@ -98,7 +98,7 @@ async def get_track_image_key(key: str, buffer: BytesIO, file: UploadFile | None
             pic = pics[0]
             image_key = get_track_image_key_from_metadata(key=key, content_type=pic.mime)
             try:
-                await default_minio_data_upload(key=image_key, body=pic.data, content_type=pic.meme)
+                await default_minio_data_upload(key=image_key, body=pic.data, content_type=pic.mime)
                 logger.success(f'Successful mp3 cover uploading from metadata with {image_key} key')
             except Exception:
                 logger.error(f'Error, while trying to upload from metadata cover with {image_key} key for mp3 track')
@@ -150,3 +150,27 @@ async def get_track_artist_and_album_id(session: AsyncSession, artist_name: str 
     except Exception as e:
         logger.error(f'Error {e}, while trying get or create artist {artist_name} or album {album_name}')
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f'Error {e}, while trying get or create artist {artist_name} or album {album_name}')
+    
+def track_post_form(
+    title: Optional[str] = Form(None),
+    artist_id: Optional[int] = Form(None),
+    album_id: Optional[int] = Form(None),
+    genre: Optional[List[str]] = Form(None) 
+) -> TrackPost:
+    return TrackPost(title=title, artist_id=artist_id, album_id=album_id, genre=genre)
+
+def track_update_form(
+    title: str = Form(...),
+    artist_id: int = Form(...),
+    album_id: int = Form(...),
+    genre: List[str] = Form(...)  
+) -> TrackUpdate:
+    return TrackUpdate(title=title, artist_id=artist_id, album_id=album_id, genre=genre)
+
+def track_patch_form(
+    title: Optional[str] = Form(None),
+    artist_id: Optional[int] = Form(None),
+    album_id: Optional[int] = Form(None),
+    genre: Optional[List[str]] = Form(None)  
+) -> TrackPatch:
+    return TrackPatch(title=title, artist_id=artist_id, album_id=album_id, genre=genre)

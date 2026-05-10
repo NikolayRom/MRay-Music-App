@@ -58,7 +58,12 @@ async def get_artist(request: Request, id: int, session: AsyncSession = Depends(
     return artist
 
 @router.post('/artist', response_model=ArtistRead)
-async def post_artist(request: Request, artist_obj: ArtistPost, file: Optional[UploadFile] = None, session: AsyncSession = Depends(get_async_session)):
+async def post_artist(
+    request: Request,
+    artist_obj: ArtistPost = Depends(artist_post_form),
+    file: Optional[UploadFile] = None,
+    session: AsyncSession = Depends(get_async_session)
+):
     name = artist_obj.name
     if not await check_unique_artist_name(name):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f'Artist with {name} name already exist')
@@ -88,7 +93,13 @@ async def post_artist(request: Request, artist_obj: ArtistPost, file: Optional[U
     return artist
 
 @router.put('/artist/{id}', response_model=ArtistRead)
-async def put_artist(request: Request, id: int, artist_obj: ArtistUpdate, file: UploadFile = File(..., description='Cover for artist'), session: AsyncSession = Depends(get_async_session)):
+async def put_artist(
+    request: Request,
+    id: int,
+    artist_obj: ArtistUpdate = Depends(artist_update_form),
+    file: UploadFile = File(..., description='Cover for artist'),
+    session: AsyncSession = Depends(get_async_session)
+):
     result = await session.execute(select(Artist).where(Artist.id == id).options(selectinload(Artist.albums), selectinload(Artist.tracks)))
     artist = result.scalar_one_or_none()
     check_object_exist(artist)
@@ -114,12 +125,18 @@ async def put_artist(request: Request, id: int, artist_obj: ArtistUpdate, file: 
     return artist
 
 @router.patch('/artist/{id}', response_model=ArtistRead)
-async def patch_artist(request: Request, id: int, artist_obj: Optional[ArtistPatch] = None, file: Optional[UploadFile] = None, session: AsyncSession = Depends(get_async_session)):
+async def patch_artist(
+    request: Request,
+    id: int,
+    artist_obj: ArtistPatch = Depends(artist_patch_form),
+    file: Optional[UploadFile] = None,
+    session: AsyncSession = Depends(get_async_session)
+):
     result = await session.execute(select(Artist).where(Artist.id == id).options(selectinload(Artist.albums), selectinload(Artist.tracks)))
     artist = result.scalar_one_or_none()
     check_object_exist(artist)
     
-    if artist_obj:
+    if artist_obj.name:
         name = artist_obj.name
         if not await check_unique_artist_name(name):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f'Artist with {name} name already exist')

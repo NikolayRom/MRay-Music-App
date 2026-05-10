@@ -46,9 +46,9 @@ class TrackUpdate(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 class TrackPatch(BaseModel):
-    title: Optional[str]
-    artist_id: Optional[int]
-    album_id: Optional[int]
-    genre: Optional[List[str]]
+    title: Optional[str] = None
+    artist_id: Optional[int] = None
+    album_id: Optional[int] = None
+    genre: Optional[List[str]] = None
 
     model_config = ConfigDict(from_attributes=True)

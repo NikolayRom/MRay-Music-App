@@ -62,7 +62,12 @@ async def get_album(request: Request, id: int, session: AsyncSession = Depends(g
     return album
 
 @router.post('/album', response_model=AlbumRead)
-async def post_album(request: Request, album_data: AlbumPost, file: Optional[UploadFile] = None, session: AsyncSession = Depends(get_async_session)):
+async def post_album(
+    request: Request,
+    album_data: AlbumPost = Depends(album_post_form),
+    file: Optional[UploadFile] = None,
+    session: AsyncSession = Depends(get_async_session)
+):
     name = album_data.name
     artist_id = album_data.artist_id
 
@@ -94,7 +99,13 @@ async def post_album(request: Request, album_data: AlbumPost, file: Optional[Upl
     return album
 
 @router.put('/album/{id}', response_model=AlbumRead)
-async def put_album(request: Request, album_data: AlbumUpdate, id: int, file: UploadFile = File(..., description='Cover for album'), session: AsyncSession = Depends(get_async_session)):
+async def put_album(
+    request: Request,
+    id: int,
+    album_data: AlbumUpdate = Depends(album_update_form),
+    file: UploadFile = File(..., description='Cover for album'),
+    session: AsyncSession = Depends(get_async_session)
+):
     result = await session.execute(select(Album).where(Album.id == id).options(selectinload(Album.artist), selectinload(Album.tracks)))
     album = result.scalar_one_or_none()
     check_object_exist(album)
@@ -120,17 +131,22 @@ async def put_album(request: Request, album_data: AlbumUpdate, id: int, file: Up
     return album
 
 @router.patch('/album/{id}', response_model=AlbumRead)
-async def patch_album(request: Request, id: int, album_data: Optional[AlbumPatch] = None, file: Optional[UploadFile] = None, session: AsyncSession = Depends(get_async_session)):
+async def patch_album(
+    request: Request,
+    id: int,
+    album_data: AlbumPatch = Depends(album_patch_form),
+    file: Optional[UploadFile] = None,
+    session: AsyncSession = Depends(get_async_session)
+):
     result = await session.execute(select(Album).where(Album.id == id).options(selectinload(Album.artist), selectinload(Album.tracks)))
     album = result.scalar_one_or_none()
     check_object_exist(album)
     
-    if album_data:
-        if album_data.name:
-            album.name = album_data.name
-        if album_data.artist_id:
-            check_object_exist(await session.get(Artist, album_data.artist_id))
-            album.artist_id = album_data.artist_id
+    if album_data.name:
+        album.name = album_data.name
+    if album_data.artist_id:
+        check_object_exist(await session.get(Artist, album_data.artist_id))
+        album.artist_id = album_data.artist_id
 
     if file:
         image_key = get_image_key_from_file(key=album.id, file=file)
@@ -158,7 +174,7 @@ async def delete_album(request: Request, id: int, session: AsyncSession = Depend
 
     if image_key:
         try:
-            default_minio_data_delete(key=image_key)
+            await default_minio_data_delete(key=image_key)
         except Exception:
             logger.error('Can\'t delete cover for album')
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Can\'t delete cover for album')

@@ -76,7 +76,7 @@ async def get_track(request: Request, id: int, session: AsyncSession = Depends(g
 @router.post('/track', response_model=TrackRead)
 async def post_track(
     request: Request,
-    track_data: TrackPost, 
+    track_data: TrackPost = Depends(track_post_form), 
     file_track: UploadFile = File(..., description='upload mp3 track'),
     file_cover: Optional[UploadFile] = None,
     session: AsyncSession = Depends(get_async_session)
@@ -93,14 +93,14 @@ async def post_track(
         
         try:
             read_size = await get_metadata_size(file=file_track)
-        except Exception:
-            logger.error('Can\'t read metadata of mp3 file')
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Can\'t read metadata of mp3 file')
+        except Exception as e:
+            logger.error(f'Can\'t read metadata of mp3 file: {e}')
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f'Can\'t read metadata of mp3 file: {e}')
         try:
             await streaming_minio_data_upload(key=file_key, content_type='audio/mpeg', file=file_track)
-        except Exception:
-            logger.error('Can\'t upload object from minio storage')
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Can\'t upload object from minio storage')
+        except Exception as e:
+            logger.error(f'Can\'t upload object from minio storage: {e}')
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f'Can\'t upload object from minio storage: {e}')
     
         metadata_content = await file_track.read(read_size)
         await file_track.seek(0)
@@ -124,24 +124,30 @@ async def post_track(
                 genre=get_track_genre(audio=audio, separators=[',', '&']) if not track_data.genre else track_data.genre,
             )
             logger.success(f'Successful creation of new track: {track}')
-        except:
-            logger.error('Can\'t read metadata from mp3 file')
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Can\'t read metadata from mp3 file')
+        except Exception as e:
+            logger.error(f'Can\'t read metadata from mp3 file: {e}')
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f'Can\'t read metadata from mp3 file: {e}')
 
         session.add(track)
-        print('Successful track commit')
+        logger.success(f'Successful track commit')
         await session.commit()
-        await session.refresh(track)
+        await session.refresh(track, ['artist', 'album'])
         logger.info(f'Save new track with {track.id} id')
 
         return track
 
-    except Exception:
-        logger.error('Can\'t upload this mp3 file')
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Can\'t upload this mp3 file')
+    except Exception as e:
+        logger.error(f'Can\'t upload this mp3 file: {e}')
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f'Can\'t upload this mp3 file: {e}')
 
 @router.put('/track/{track_id}', response_model=TrackRead)
-async def put_track(request: Request, track_id: int, track_data: TrackUpdate, file: UploadFile = File(..., description='upload cover for mp3 track'), session: AsyncSession = Depends(get_async_session)):
+async def put_track(
+    request: Request,
+    track_id: int,
+    track_data: TrackUpdate = Depends(track_update_form),
+    file: UploadFile = File(..., description='upload cover for mp3 track'),
+    session: AsyncSession = Depends(get_async_session)
+):
     track = await session.get(Track, track_id)
     check_object_exist(track)
     check_content_type_format(formats=["image/jpeg", "image/png", "image/jpg"], file=file)
@@ -174,12 +180,18 @@ async def put_track(request: Request, track_id: int, track_data: TrackUpdate, fi
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Invalid parameters for track')
     
     await session.commit()
-    await session.refresh(track)
+    await session.refresh(track, ['artist', 'album'])
     logger.info(f'Save updated track {track} with {track.id} id')
     return track
 
 @router.patch('/track/{track_id}', response_model=TrackRead)
-async def patch_track(request: Request, track_id: int, track_data: TrackPatch, file: UploadFile | None = None, session: AsyncSession = Depends(get_async_session)):
+async def patch_track(
+    request: Request,
+    track_id: int,
+    track_data: TrackPatch = Depends(track_patch_form),
+    file: UploadFile | None = None,
+    session: AsyncSession = Depends(get_async_session)
+):
     track = await session.get(Track, track_id)
     check_object_exist(track)
     await check_artist_and_album_id_for_track(session=session, artist_id=track_data.artist_id, album_id=track_data.album_id)
@@ -203,7 +215,7 @@ async def patch_track(request: Request, track_id: int, track_data: TrackPatch, f
 
     try:
 
-        for key, value in track_data.model_dump(exclude_unset=True).items():
+        for key, value in track_data.model_dump(exclude_unset=True, exclude_none=True).items():
             setattr(track, key, value)
         logger.success(f'Successful patch for track {track} with {track.id} id')
     except Exception:
@@ -211,7 +223,7 @@ async def patch_track(request: Request, track_id: int, track_data: TrackPatch, f
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Invalid parameters for track')
     
     await session.commit()
-    await session.refresh(track)
+    await session.refresh(track, ['artist', 'album'])
     logger.info(f'Save updated track {track} with {track.id} id')
     return track
 
