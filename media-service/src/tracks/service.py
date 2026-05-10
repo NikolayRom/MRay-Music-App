@@ -92,7 +92,12 @@ async def get_track_image_key(key: str, buffer: BytesIO, file: UploadFile | None
     else:
 
         image_key = None
-        tags = ID3(buffer)
+        buffer.seek(0)
+        try:
+            tags = ID3(buffer)
+        except Exception as e:
+            logger.warning(f'Error, track doesn\'t have ID3v2 tags: {e}')
+            return
         pics = tags.getall('APIC')
         if pics:
             pic = pics[0]
@@ -105,7 +110,6 @@ async def get_track_image_key(key: str, buffer: BytesIO, file: UploadFile | None
                 raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Can\'t upload cover for mp3 track')
         else:
             logger.info('Cover from metadata not found, return None')
-
     return image_key
     
 def get_track_title(key: str, audio: MP3, is_seeder: bool = False):
