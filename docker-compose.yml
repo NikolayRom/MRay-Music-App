@@ -9,6 +9,8 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     command: server /data --console-address ':9001'
+    networks:
+      - mray_network
 
   postgres:
     image: postgres:latest
@@ -17,10 +19,13 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_DB: ${POSTGRES_DB_MEDIA}
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - pgdata:/var/lib/postgresql/data/pgdata
+      - ./init-db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - mray_network
     depends_on:
       - minio
 
@@ -41,10 +46,10 @@ services:
       - MINIO_COVER_ROOT=${MINIO_COVER_ROOT}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_DB_MEDIA=${POSTGRES_DB_MEDIA}
       - POSTGRES_HOST=${POSTGRES_HOST}  
       - POSTGRES_PORT=${POSTGRES_PORT}
-      - POSTGRES_URL=${POSTGRES_URL}
+      - POSTGRES_URL_MEDIA=${POSTGRES_URL_MEDIA}
       - MAX_GET_SIZE=${MAX_GET_SIZE}
       - DEFAULT_GET_SIZE=${DEFAULT_GET_SIZE}
     command: fastapi dev src/main.py --host 0.0.0.0 --port 8000
@@ -53,6 +58,38 @@ services:
       - postgres
     volumes:
       - ./media-service:/app
+      - ./logs:/app/logs
+    networks:
+      - mray_network
+
+  core-service:
+    build:
+      context: ./core-service
+      dockerfile: Dockerfile
+    container_name: core_service_app
+    ports:
+      - "8081:8081"
+    environment:
+      - POSTGRES_DB_CORE=${POSTGRES_DB_CORE}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_URL_CORE=${POSTGRES_URL_CORE}
+      - MAX_GET_SIZE=${MAX_GET_SIZE}
+      - DEFAULT_GET_SIZE=${DEFAULT_GET_SIZE}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+    depends_on:
+      - postgres
+    volumes:
+      - ./core-service:/app
+      - ./logs:/app/logs 
+    networks:
+      - mray_network
+
+networks:
+  mray_network:
+    driver: bridge
 
 volumes:
   pgdata:
