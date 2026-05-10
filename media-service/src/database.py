@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from src.common.logger import logger
 
-engine = create_async_engine(url=settings.POSTGRES_URL)
+engine = create_async_engine(url=settings.POSTGRES_URL_MEDIA)
 
 async_session_maker = async_sessionmaker(engine)
 

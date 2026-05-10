@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     MINIO_MAX_FILE_SIZE: int
     MINIO_COVER_ROOT: str
 
-    POSTGRES_URL: str
+    POSTGRES_URL_MEDIA: str
 
     MAX_GET_SIZE: int
     DEFAULT_GET_SIZE: int
