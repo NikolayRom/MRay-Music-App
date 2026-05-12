@@ -11,7 +11,7 @@ class User(Base):
     
     id: Mapped[int] = mapped_column(primary_key=True)
     image_key: Mapped[Optional[str]] = mapped_column(String(500))
-    email: Mapped[str] = mapped_column(String(100), index=True, unique=True, nullable=False)
+    email: Mapped[Optional[str]] = mapped_column(String(100), index=True, unique=True)
     username: Mapped[str] = mapped_column(String(50), index=True, unique=True, nullable=False)
     hashed_password: Mapped[str] = mapped_column(String(1024), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -44,3 +44,11 @@ class Playlist(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), server_onupdate=func.now(), nullable=False)
 
     user: Mapped['User'] = relationship(back_populates='playlists')
+
+class RefreshToken(Base):
+    __tablename__ = 'tokens'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    hashed_token: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
+    exp: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
