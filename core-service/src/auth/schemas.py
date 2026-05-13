@@ -9,19 +9,19 @@ class TokenPairResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-class RefreshTokenResponse(BaseModel):
+class RefreshTokenRequest(BaseModel):
     refresh_token: str
 
     model_config = ConfigDict(from_attributes=True)
 
 class AccessTokenCreate(BaseModel):
-    sub: int
+    sub: str
     exp: datetime
 
     @classmethod
     def create(cls, user_id: int, expires_minutes: int = settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES) -> 'AccessTokenCreate':
         return cls(
-            sub=user_id,
+            sub=str(user_id),
             exp=datetime.now(timezone.utc) + timedelta(minutes=expires_minutes)
         )
 
