@@ -7,6 +7,7 @@ from src.models import User
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from src.database import get_async_session
 from src.config import settings
 from src.auth.schemas import RefreshTokenRequest
@@ -41,29 +42,11 @@ async def create_tokens(user_id: int, session: AsyncSession) -> tuple[str, Refre
         access_token,
         refresh_token
     )
-
-def verify_access_token(token: str = Depends(oauth2_scheme)) -> int:
-    try:
-        payload = jwt.decode(jwt=token, key=settings.JWT_SECRET_KEY, algorithms=settings.JWT_ALGORITHM)
-        sub = payload.get('sub')
-
-        if not sub:
-            logger.warning(f'Not found "sub" in access token ({token})')
-
-        sub = int(sub)
-        return sub
     
-    except jwt.ExpiredSignatureError as e:
-        logger.error(f'Access token expired: {e}')
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f'Access token expired: {e}')
-    except jwt.InvalidTokenError as e:
-        logger.error(f'Invalid access token: {e}')
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f'Invalid access token: {e}')
-    except Exception as e:
-        logger.error(f'Error, while trying to verify access token: {e}')
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f'Error, while trying to verify access token: {e}')
-    
-async def verify_refresh_token(token: str = Depends(oauth2_scheme), session: AsyncSession = Depends(get_async_session)) -> RefreshTokenRequest:
+async def verify_refresh_token(
+    token: str = Depends(oauth2_scheme),
+    session: AsyncSession = Depends(get_async_session)
+) -> RefreshTokenRequest:
     try:
         token_data = await get_refresh_token_from_db(token=token, session=session)
         if not token_data:

@@ -1,4 +1,3 @@
-from passlib.context import CryptContext
 import hashlib
 import secrets
 from src.auth.schemas import AccessTokenCreate, RefreshTokenRequest
@@ -9,8 +8,9 @@ from src.models import RefreshToken
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import delete, select
 from src.common.logger import logger
+from src.common.crypt_context import CryptContext
 
-pwd_context = CryptContext(schemes=["bcrypt"])
+pwd_context = CryptContext()
 
 def hash_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()

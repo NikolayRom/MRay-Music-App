@@ -6,7 +6,7 @@ from src.users.utils import get_user_by_username, get_user_by_email
 from src.auth.utils import pwd_context, get_refresh_token_from_db, set_inactive_refresh_token
 from src.models import User
 from src.common.logger import logger
-from src.auth.service import authenticate, create_tokens, verify_refresh_token, verify_access_token
+from src.auth.service import authenticate, create_tokens, verify_refresh_token
 from src.auth.schemas import TokenPairResponse, RefreshTokenRequest
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -81,22 +81,3 @@ async def logout(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Refresh token not found')
     
     await set_inactive_refresh_token(refresh_token=refresh_token, session=session)
-
-@router.get('/profile', response_model=UserRead)
-async def get_profile(
-    request: Request,
-    user_id: int = Depends(verify_access_token),
-    session: AsyncSession = Depends(get_async_session)
-):
-    if not user_id:
-        logger.error(f'No user id in access token')
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f'No user id in access token')
-    
-    result = await session.execute(select(User).where(User.id == user_id).options(selectinload(User.likes), selectinload(User.playlists)))
-    user = result.scalar_one_or_none()
-
-    if not user:
-        logger.error(f'User with {user_id} id not found')
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'User with {user_id} id not found')
-    
-    return user
