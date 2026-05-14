@@ -1,0 +1,121 @@
+from fastapi import APIRouter, HTTPException, status, Request, Depends, UploadFile, File
+from src.users.schemas import UserRead
+from sqlalchemy.ext.asyncio import AsyncSession
+from src.common.logger import logger
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
+from src.common.rbac import get_current_user
+from src.database import get_async_session
+from src.models import User
+from src.users.schemas import UserProfilePatch, UserProfileUpdate
+from src.users.service import user_profile_patch_form, user_profile_update_form, get_image_key
+from typing import Optional
+from src.auth.service import authenticate
+from src.common.rbac import verify_access_token
+from src.users.utils import get_user_by_email, get_user_by_username
+from src.auth.utils import pwd_context
+
+router = APIRouter(prefix='/user')
+
+@router.get('/profile', response_model=UserRead)
+async def get_profile(
+    request: Request,
+    user: User = Depends(get_current_user),
+):
+    return user
+
+@router.put('/profile', response_model=UserRead)
+async def update_profile(
+    request: Request,
+    user: User = Depends(authenticate),
+    access_token: str = Depends(verify_access_token),
+    user_data: UserProfileUpdate = Depends(user_profile_update_form),
+    avatar: UploadFile = File(..., description='Avatar for user'),
+    session: AsyncSession = Depends(get_async_session) 
+) -> User:
+
+    if await get_user_by_username(username=user_data.new_username, session=session):
+        logger.error(f'User with {user_data.new_username} username already exists!')
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f'User with {user_data.new_username} username already exists!')
+    
+    if await get_user_by_email(email=user_data.new_email, session=session):
+        logger.error(f'User with {user_data.new_email} email already exists!')
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f'User with {user_data.new_email} email already exists!')
+
+    if user_data.new_password != user_data.new_password2:
+        logger.error(f'Invalid password2 for user {user.username}')
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f'Invalid password2 for user {user.username}')
+    
+    try:
+        avatar_key = get_image_key(key=str(user.id), file=avatar)
+    except Exception as e:
+        logger.error(f'Failed upload user avatar: {e}')
+        raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail=f'Failed upload user avatar: {e}')
+    
+    try:
+        user.username = user_data.new_username
+        user.email = user_data.new_email
+        user.hashed_password = pwd_context.hash(user_data.new_password)
+        user.image_key = avatar_key
+
+        await session.commit()
+        await session.refresh(user)
+        logger.success(f'Successful update for {user.username} profile')
+
+        return user
+
+    except Exception as e:
+        logger.error(f'Failed to update user profile: {e}')
+        raise HTTPException(status_code=status.HTTP_500, detail=f'Failed to update user profile: {e}')
+    
+@router.patch('/profile', response_model=UserRead)
+async def patch_profile(
+    request: Request,
+    user: User = Depends(authenticate),
+    access_token: str = Depends(verify_access_token),
+    user_data: UserProfilePatch = Depends(user_profile_patch_form),
+    avatar: Optional[UploadFile] = None,
+    session: AsyncSession = Depends(get_async_session)
+) -> User:
+    if user_data.new_username and await get_user_by_username(username=user_data.new_username, session=session):
+        logger.error(f'User with {user_data.new_username} username already exists!')
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f'User with {user_data.new_username} username already exists!')
+    
+    if user_data.new_email and await get_user_by_email(email=user_data.new_email, session=session):
+        logger.error(f'User with {user_data.new_email} email already exists!')
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f'User with {user_data.new_email} email already exists!')
+
+    if user_data.new_password and not user_data.new_password2 or not user_data.new_password and user_data.new_password2:
+        logger.error(f'New password has 2 required fields, but 1 given')
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f'New password has 2 required fields, but 1 given')
+
+    if user_data.new_password and user_data.new_password2 and user_data.new_password != user_data.new_password2:
+        logger.error(f'Invalid password2 for user {user.username}')
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f'Invalid password2 for user {user.username}')
+    
+    try:
+        if avatar:
+            avatar_key = get_image_key(key=str(user.id), file=avatar)
+    except Exception as e:
+        logger.error(f'Failed upload user avatar: {e}')
+        raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail=f'Failed upload user avatar: {e}')
+    
+    try:
+        if user_data.new_username:
+            user.username = user_data.new_username
+        if user_data.new_email:
+            user.email = user_data.new_email
+        if user_data.new_password:
+            user.hashed_password = pwd_context.hash(user_data.new_password)
+        if avatar:
+            user.image_key = avatar_key
+
+        await session.commit()
+        await session.refresh(user)
+        logger.success(f'Successful update for {user.username} profile')
+
+        return user
+
+    except Exception as e:
+        logger.error(f'Failed to update user profile: {e}')
+        raise HTTPException(status_code=status.HTTP_500, detail=f'Failed to update user profile: {e}')

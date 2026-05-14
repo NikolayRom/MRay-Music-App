@@ -11,6 +11,22 @@ class UserRegister(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+class UserProfileUpdate(BaseModel):
+    new_username: str
+    new_password: str
+    new_password2: str
+    new_email: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+class UserProfilePatch(BaseModel):
+    new_username: Optional[str] = None
+    new_password: Optional[str] = None
+    new_password2: Optional[str] = None
+    new_email: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
 class UserAuth(BaseModel):
     username: str
     password: str
