@@ -21,13 +21,15 @@ class User(Base):
 
     likes: Mapped[List['Like']] = relationship(back_populates='user', cascade='all, delete-orphan')
     playlists: Mapped[List['Playlist']] = relationship(back_populates='user', cascade='all, delete-orphan')
+    tokens: Mapped[List['RefreshToken']] = relationship(back_populates='user', cascade='all, delete-orphan')
+    history: Mapped[List['UserHistory']] = relationship(back_populates='user', cascade='all, delete-orphan')
 
 class Like(Base):
     __tablename__ = 'likes'
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), index=True)
-    track_id: Mapped[int] = mapped_column(index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), index=True, nullable=False)
+    track_id: Mapped[int] = mapped_column(index=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.timezone('UTC', func.now()), nullable=False)
 
     user: Mapped['User'] = relationship(back_populates='likes')
@@ -52,3 +54,14 @@ class RefreshToken(Base):
     hashed_token: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
     exp: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, index=True)
+
+    user: Mapped['User'] = relationship(back_populates='tokens')
+
+class UserHistory(Base):
+    __tablename__ = 'history'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), index=True, nullable=False)
+    track_id: Mapped[int] = mapped_column(nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.timezone('UTC', func.now()), index=True, nullable=False)
+
+    user: Mapped['User'] = relationship(back_populates='history')
