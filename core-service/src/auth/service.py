@@ -28,9 +28,12 @@ async def authenticate(credentials: UserAuth, session: AsyncSession = Depends(ge
     
     return user
 
-async def create_tokens(user_id: int, session: AsyncSession) -> tuple[str, RefreshTokenRequest]:
+async def create_tokens(user: User, session: AsyncSession) -> tuple[str, RefreshTokenRequest]:
     
-    access_token = create_access_token(user_id=user_id)
+    access_token = create_access_token(user=user)
+
+    user_id = user.id
+
     refresh_token, refresh_token_db = create_refresh_token(user_id=user_id)
 
     session.add(refresh_token_db)

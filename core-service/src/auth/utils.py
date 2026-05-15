@@ -4,11 +4,13 @@ from src.auth.schemas import AccessTokenCreate, RefreshTokenRequest
 from datetime import datetime, timedelta, timezone
 import jwt
 from src.config import settings
-from src.models import RefreshToken
+from src.models import RefreshToken, User
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import delete, select
 from src.common.logger import logger
 from src.common.crypt_context import CryptContext
+import smtplib
+from email.message import EmailMessage
 
 pwd_context = CryptContext()
 
@@ -34,13 +36,13 @@ def check_token_inactive(token: RefreshToken) -> bool:
 
     return is_inactive
 
-def create_access_token(user_id: int) -> str:
+def create_access_token(user: User) -> str:
     access_token = jwt.encode(
-        payload=AccessTokenCreate.create(user_id).model_dump(),
+        payload=AccessTokenCreate.create(user_id=user.id, is_superuser=user.is_superuser).model_dump(),
         key=settings.JWT_SECRET_KEY,
         algorithm=settings.JWT_ALGORITHM
     )
-    logger.info(f'Create new access token for user ({user_id})')
+    logger.info(f'Create new access token for user ({user.id})')
     return access_token
 
 def create_refresh_token(user_id: int) -> tuple[RefreshTokenRequest, RefreshToken]:
@@ -75,3 +77,23 @@ async def get_refresh_token_from_db(token: RefreshTokenRequest, session: AsyncSe
         logger.warning(f'Refresh token not found')
 
     return refresh_token
+
+def send_reset_password_email(email_to: str, token: str):
+    msg = EmailMessage()
+    msg['Subject'] = 'Reset password - MRay music app'
+    msg['From'] = settings.SMTP_USER
+    msg['To'] = email_to
+
+    reset_link = f'http://localhost:3000/auth/password/reset?token={token}'
+
+    msg.set_content(f"""
+    To reset your password, please follow the link below:
+                    
+    {reset_link}
+
+    The link is valid for 15 minutes.
+    """)
+
+    with smtplib.SMTP_SSL(host=settings.SMTP_HOST, port=settings.SMTP_PORT) as smtp:
+        smtp.login(user=settings.SMTP_USER, password=settings.SMTP_PASSWORD)
+        smtp.send_message(msg=msg)
