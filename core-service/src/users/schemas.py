@@ -11,6 +11,17 @@ class UserRegister(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+class UserRegisterRead(BaseModel):
+    id: int
+    username: str
+    email: Optional[str] = None
+    is_active: bool
+    is_superuser: bool
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
 class UserProfileUpdate(BaseModel):
     new_username: str
     new_password: str

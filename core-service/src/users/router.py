@@ -34,11 +34,13 @@ async def update_profile(
     session: AsyncSession = Depends(get_async_session) 
 ) -> User:
 
-    if await get_user_by_username(username=user_data.new_username, session=session):
+    usr = await get_user_by_username(username=user_data.new_username, session=session) 
+    if usr and usr.id != user.id:
         logger.error(f'User with {user_data.new_username} username already exists!')
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f'User with {user_data.new_username} username already exists!')
     
-    if await get_user_by_email(email=user_data.new_email, session=session):
+    usr = await get_user_by_email(email=user_data.new_email, session=session)
+    if usr and usr.id != user.id:
         logger.error(f'User with {user_data.new_email} email already exists!')
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f'User with {user_data.new_email} email already exists!')
 
@@ -77,13 +79,18 @@ async def patch_profile(
     avatar: Optional[UploadFile] = None,
     session: AsyncSession = Depends(get_async_session)
 ) -> User:
-    if user_data.new_username and await get_user_by_username(username=user_data.new_username, session=session):
-        logger.error(f'User with {user_data.new_username} username already exists!')
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f'User with {user_data.new_username} username already exists!')
     
-    if user_data.new_email and await get_user_by_email(email=user_data.new_email, session=session):
-        logger.error(f'User with {user_data.new_email} email already exists!')
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f'User with {user_data.new_email} email already exists!')
+    if user_data.new_username:
+        usr = await get_user_by_username(username=user_data.new_username, session=session) 
+        if usr and usr.id != user.id:
+            logger.error(f'User with {user_data.new_username} username already exists!')
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f'User with {user_data.new_username} username already exists!')
+    
+    if user_data.new_email:
+        usr = await get_user_by_email(email=user_data.new_email, session=session)
+        if usr and usr.id != user.id:
+            logger.error(f'User with {user_data.new_email} email already exists!')
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f'User with {user_data.new_email} email already exists!')
 
     if user_data.new_password and not user_data.new_password2 or not user_data.new_password and user_data.new_password2:
         logger.error(f'New password has 2 required fields, but 1 given')
