@@ -3,6 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     
     MINIO_URL: str
+    MINIO_POLICY_URL: str
     MINIO_ROOT_USER: str
     MINIO_ROOT_PASSWORD: str
     MINIO_BUCKET_NAME_CORE: str
@@ -16,6 +17,7 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int
+    JWT_RESET_TOKEN_EXPIRE_MINUTES: int
     INACTIVE_REFRESH_TOKEN_LIFETIME_DAYS: int
 
     SUPERUSER_USERNAME: str
@@ -24,6 +26,11 @@ class Settings(BaseSettings):
     SUPERUSER_AUTO_CREATE: bool
 
     USER_HISTORY_LIFETIME_DAYS: int
+
+    SMTP_HOST: str
+    SMTP_PORT: str
+    SMTP_USER: str
+    SMTP_PASSWORD: str
 
     model_config = SettingsConfigDict(env_file='../.env', extra='ignore')
 
