@@ -3,11 +3,8 @@ from fastapi import FastAPI
 from src.common.scheduler import setup_scheduler, scheduler
 from src.common.logger import logger
 from src.config import settings
-from src.database import async_session_maker
-from sqlalchemy import select
-from src.models import User
-from src.auth.utils import pwd_context
 from src.processor.create_superuser import create_superuser
+from src.common.s3_utils import set_public_bucket_policy
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -27,6 +24,11 @@ async def lifespan(app: FastAPI):
         )
     except Exception as e:
         logger.error(f'Failed to auto create superuser: {e}')
+
+    try:
+        await set_public_bucket_policy(bucket_name=settings.MINIO_BUCKET_NAME_CORE)
+    except Exception as e:
+        logger.error(f'Failed to set PUBLIC policy for {settings.MINIO_BUCKET_NAME_CORE} bucket in MinIO: {e}')
 
     yield
 
