@@ -163,9 +163,9 @@ async def put_track(
         image_key = get_image_key_from_file(key=track.s3_key, file=file)
 
         if track.image_key:
-            await default_minio_data_delete(key=track.image_key)
+            await default_minio_data_delete(key=track.image_key, is_public=True)
             
-        await streaming_minio_data_upload(key=image_key, content_type=file.content_type, file=file)
+        await streaming_minio_data_upload(key=image_key, content_type=file.content_type, file=file, is_public=True)
         track.image_key = image_key
 
     except Exception:
@@ -208,9 +208,9 @@ async def patch_track(
             image_key = get_image_key_from_file(key=track.s3_key, file=file)
 
             if track.image_key:
-                await default_minio_data_delete(key=track.image_key)
+                await default_minio_data_delete(key=track.image_key, is_public=True)
                 
-            await streaming_minio_data_upload(key=image_key, content_type=file.content_type, file=file)
+            await streaming_minio_data_upload(key=image_key, content_type=file.content_type, file=file, is_public=True)
             track.image_key = image_key
 
         except Exception:
@@ -242,7 +242,7 @@ async def delete_track(
 
     check_object_exist(track)
     if track.image_key:
-        await default_minio_data_delete(key=track.image_key)
+        await default_minio_data_delete(key=track.image_key, is_public=True)
     await default_minio_data_delete(key=track.s3_key)
     await session.delete(track)
     await session.commit()

@@ -90,7 +90,7 @@ async def post_album(
     if file:
         image_key = get_image_key_from_file(key=album.id, file=file)
         try:
-            await streaming_minio_data_upload(key=image_key, content_type=file.content_type, file=file)
+            await streaming_minio_data_upload(key=image_key, content_type=file.content_type, file=file, is_public=True)
             album.image_key = image_key
             await session.commit()
             await session.refresh(album)
@@ -121,7 +121,7 @@ async def put_album(
     
     image_key = get_image_key_from_file(key=album.id, file=file)
     try:
-        await streaming_minio_data_upload(key=image_key, content_type=file.content_type, file=file)
+        await streaming_minio_data_upload(key=image_key, content_type=file.content_type, file=file, is_public=True)
         album.image_key = image_key
     except Exception:
         logger.error('Can\'t upload cover for album')
@@ -155,7 +155,7 @@ async def patch_album(
     if file:
         image_key = get_image_key_from_file(key=album.id, file=file)
         try:
-            await streaming_minio_data_upload(key=image_key, content_type=file.content_type, file=file)
+            await streaming_minio_data_upload(key=image_key, content_type=file.content_type, file=file, is_public=True)
             album.image_key = image_key
         except Exception:
             logger.error('Can\'t upload cover for album')
@@ -183,7 +183,7 @@ async def delete_album(
 
     if image_key:
         try:
-            await default_minio_data_delete(key=image_key)
+            await default_minio_data_delete(key=image_key, is_public=True)
         except Exception:
             logger.error('Can\'t delete cover for album')
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Can\'t delete cover for album')
@@ -192,7 +192,7 @@ async def delete_album(
         try:
             for track in tracks:
                 if track.image_key:
-                    await default_minio_data_delete(key=track.image_key)
+                    await default_minio_data_delete(key=track.image_key, is_public=True)
                 await default_minio_data_delete(key=track.s3_key)
         except Exception:
             logger.error('Can\'t delete tracks for artist')

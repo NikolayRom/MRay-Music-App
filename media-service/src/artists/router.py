@@ -84,7 +84,7 @@ async def post_artist(
     if file:
         image_key = get_image_key_from_file(key=artist.id, file=file)
         try:
-            await streaming_minio_data_upload(key=image_key, content_type=file.content_type, file=file)
+            await streaming_minio_data_upload(key=image_key, content_type=file.content_type, file=file, is_public=True)
             artist.image_key = image_key
             await session.commit()
             await session.refresh(artist)
@@ -115,7 +115,7 @@ async def put_artist(
     
     image_key = get_image_key_from_file(key=artist.id, file=file)
     try:
-        await streaming_minio_data_upload(key=image_key, content_type=file.content_type, file=file)
+        await streaming_minio_data_upload(key=image_key, content_type=file.content_type, file=file, is_public=True)
         artist.image_key = image_key
     except Exception:
         logger.error('Can\'t upload cover for artist')
@@ -149,7 +149,7 @@ async def patch_artist(
     if file:
         image_key = get_image_key_from_file(key=artist.id, file=file)
         try:
-            await streaming_minio_data_upload(key=image_key, content_type=file.content_type, file=file)
+            await streaming_minio_data_upload(key=image_key, content_type=file.content_type, file=file, is_public=True)
             artist.image_key = image_key
         except Exception:
             logger.error('Can\'t upload cover for artist')
@@ -173,21 +173,29 @@ async def delete_artist(
     check_object_exist(artist)
 
     keys_to_delete = []
+    keys_to_delete_public = []
     if artist.image_key:
-        keys_to_delete.append(artist.image_key)
+        keys_to_delete_public.append(artist.image_key)
     
     for album in artist.albums:
         if album.image_key:
-            keys_to_delete.append(album.image_key)
+            keys_to_delete_public.append(album.image_key)
             
     for track in artist.tracks:
         keys_to_delete.append(track.s3_key)
         if track.image_key:
-            keys_to_delete.append(track.image_key)
+            keys_to_delete_public.append(track.image_key)
 
     for key in keys_to_delete:
         try:
             await default_minio_data_delete(key)
+        except Exception as e:
+            logger.error(f'Error while trying to delete {key}: {e}')
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f'Error while trying to delete {key}: {e}')
+        
+    for key in keys_to_delete_public:
+        try:
+            await default_minio_data_delete(key, is_public=True)
         except Exception as e:
             logger.error(f'Error while trying to delete {key}: {e}')
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f'Error while trying to delete {key}: {e}')

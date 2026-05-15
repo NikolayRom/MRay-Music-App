@@ -1,7 +1,7 @@
 from src.config import settings
 from fastapi import UploadFile, File, HTTPException, status, Form
 from typing import List, Optional
-from src.storage.client import s3_storage
+from src.storage.client import s3_storage, s3_assets_storage
 from src.models import Album, Artist
 from mutagen.id3 import ID3
 from mutagen.mp3 import MP3
@@ -57,11 +57,16 @@ async def get_metadata_size(file: UploadFile = File(...)):
         logger.warning(f'ID3 tag not found, return default {1024*128} metadata size')
         return 1024 * 128
     
-async def default_minio_data_upload(key: str, body, content_type: str):
+async def default_minio_data_upload(key: str, body, content_type: str, is_public: bool = False):
+    if is_public:
+        bucket_name = s3_assets_storage.bucket_name
+    else:
+        bucket_name = s3_storage.bucket_name
+    
     try:
         async with s3_storage.get_client() as s3:
             await s3.put_object(
-                Bucket=s3_storage.bucket_name,
+                Bucket=bucket_name,
                 Key=key,
                 Body=body,
                 ContentType=content_type,
@@ -73,7 +78,7 @@ async def default_minio_data_upload(key: str, body, content_type: str):
 
 def get_track_image_key_from_metadata(key: str, content_type):
     image_ext = 'jpg' if content_type == 'image/jpeg' else 'png'
-    return f'{settings.MINIO_COVER_ROOT}/{key}.{image_ext}'
+    return f'{key}.{image_ext}'
 
 async def get_track_image_key(key: str, buffer: BytesIO, file: UploadFile | None = None):
     if file:
@@ -83,7 +88,7 @@ async def get_track_image_key(key: str, buffer: BytesIO, file: UploadFile | None
         image_key = get_image_key_from_file(key=key, file=file)
 
         try:
-            await streaming_minio_data_upload(key=image_key, content_type=file.content_type, file=file)
+            await streaming_minio_data_upload(key=image_key, content_type=file.content_type, file=file, is_public=True)
             logger.success(f'Successful mp3 cover uploading {file.filename} with {image_key} key')
         except Exception:
             logger.error(f'Error, while trying to upload {file.filename} cover with {image_key} key for mp3 track')
@@ -103,7 +108,7 @@ async def get_track_image_key(key: str, buffer: BytesIO, file: UploadFile | None
             pic = pics[0]
             image_key = get_track_image_key_from_metadata(key=key, content_type=pic.mime)
             try:
-                await default_minio_data_upload(key=image_key, body=pic.data, content_type=pic.mime)
+                await default_minio_data_upload(key=image_key, body=pic.data, content_type=pic.mime, is_public=True)
                 logger.success(f'Successful mp3 cover uploading from metadata with {image_key} key')
             except Exception:
                 logger.error(f'Error, while trying to upload from metadata cover with {image_key} key for mp3 track')

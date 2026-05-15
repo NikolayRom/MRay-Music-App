@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from src.tracks.router import router as track_router
 from src.artists.router import router as artist_router
 from src.albums.router import router as album_router
-from src.database import lifespan
+from src.common.lifespan import lifespan
 
 app = FastAPI(
     title='Music Streaming App (media service)',

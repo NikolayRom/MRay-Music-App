@@ -21,7 +21,7 @@ async def seed_music():
             for obj in response['Contents']:
                 try:
                     file_key = obj['Key']
-                    if not file_key.endswith('.mp3') or f'{settings.MINIO_COVER_ROOT}' in file_key:
+                    if not file_key.endswith('.mp3'):
                         logger.warning(f'SEEDER: Found {file_key}, expected .mp3 track, skip object')
                         continue
 

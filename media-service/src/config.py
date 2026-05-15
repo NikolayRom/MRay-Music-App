@@ -2,11 +2,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     MINIO_URL: str
+    MINIO_POLICY_URL: str
     MINIO_ROOT_USER: str
     MINIO_ROOT_PASSWORD: str 
     MINIO_BUCKET_NAME: str
+    MINIO_BUCKET_NAME_MEDIA_ASSETS: str
     MINIO_MAX_FILE_SIZE: int
-    MINIO_COVER_ROOT: str
 
     POSTGRES_URL_MEDIA: str
 
