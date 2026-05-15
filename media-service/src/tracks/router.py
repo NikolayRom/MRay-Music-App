@@ -15,6 +15,7 @@ from src.tracks.service import *
 from src.common.s3_utils import *
 from src.common.validators import *
 from src.common.logger import logger
+from src.common.rbac import CurrentUser, get_current_superuser, get_current_user
 
 router = APIRouter()
 
@@ -79,7 +80,8 @@ async def post_track(
     track_data: TrackPost = Depends(track_post_form), 
     file_track: UploadFile = File(..., description='upload mp3 track'),
     file_cover: Optional[UploadFile] = None,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
+    user: CurrentUser = Depends(get_current_superuser)
 ):
     
     check_file_size(file=file_track)
@@ -146,7 +148,8 @@ async def put_track(
     track_id: int,
     track_data: TrackUpdate = Depends(track_update_form),
     file: UploadFile = File(..., description='upload cover for mp3 track'),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
+    user: CurrentUser = Depends(get_current_superuser)
 ):
     track = await session.get(Track, track_id)
     check_object_exist(track)
@@ -190,7 +193,8 @@ async def patch_track(
     track_id: int,
     track_data: TrackPatch = Depends(track_patch_form),
     file: UploadFile | None = None,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
+    user: CurrentUser = Depends(get_current_superuser)
 ):
     track = await session.get(Track, track_id)
     check_object_exist(track)
@@ -228,7 +232,12 @@ async def patch_track(
     return track
 
 @router.delete('/track/{track_id}', response_model=TrackRead)
-async def delete_track(request: Request, track_id: int, session: AsyncSession = Depends(get_async_session)):
+async def delete_track(
+    request: Request,
+    track_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: CurrentUser = Depends(get_current_superuser)
+):
     track = await session.get(Track, track_id)
 
     check_object_exist(track)

@@ -12,6 +12,7 @@ from src.artists.utils import *
 from src.common.s3_utils import *
 from src.common.validators import *
 from src.common.logger import logger
+from src.common.rbac import CurrentUser, get_current_superuser, get_current_user
 
 router = APIRouter()
 
@@ -62,7 +63,8 @@ async def post_artist(
     request: Request,
     artist_obj: ArtistPost = Depends(artist_post_form),
     file: Optional[UploadFile] = None,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
+    user: CurrentUser = Depends(get_current_superuser)
 ):
     name = artist_obj.name
     if not await check_unique_artist_name(name):
@@ -98,7 +100,8 @@ async def put_artist(
     id: int,
     artist_obj: ArtistUpdate = Depends(artist_update_form),
     file: UploadFile = File(..., description='Cover for artist'),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
+    user: CurrentUser = Depends(get_current_superuser)
 ):
     result = await session.execute(select(Artist).where(Artist.id == id).options(selectinload(Artist.albums), selectinload(Artist.tracks)))
     artist = result.scalar_one_or_none()
@@ -130,7 +133,8 @@ async def patch_artist(
     id: int,
     artist_obj: ArtistPatch = Depends(artist_patch_form),
     file: Optional[UploadFile] = None,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
+    user: CurrentUser = Depends(get_current_superuser)
 ):
     result = await session.execute(select(Artist).where(Artist.id == id).options(selectinload(Artist.albums), selectinload(Artist.tracks)))
     artist = result.scalar_one_or_none()
@@ -158,7 +162,12 @@ async def patch_artist(
     return artist
 
 @router.delete('/artist/{id}', response_model=ArtistRead)
-async def delete_artist(request: Request, id: int, session: AsyncSession = Depends(get_async_session)):
+async def delete_artist(
+    request: Request,
+    id: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: CurrentUser = Depends(get_current_superuser)
+):
     result = await session.execute(select(Artist).where(Artist.id == id).options(selectinload(Artist.albums), selectinload(Artist.tracks)))
     artist = result.scalar_one_or_none()
     check_object_exist(artist)

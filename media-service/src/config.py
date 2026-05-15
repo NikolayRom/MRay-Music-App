@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     MAX_GET_SIZE: int
     DEFAULT_GET_SIZE: int
 
+    JWT_SECRET_KEY: str
+    JWT_ALGORITHM: str
+
     model_config = SettingsConfigDict(env_file='../.env', extra='ignore')
 
 settings = Settings()

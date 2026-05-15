@@ -12,6 +12,7 @@ from src.albums.utils import *
 from src.common.s3_utils import *
 from src.common.validators import *
 from src.common.logger import logger
+from src.common.rbac import CurrentUser, get_current_superuser, get_current_user
 
 router = APIRouter()
 
@@ -66,7 +67,8 @@ async def post_album(
     request: Request,
     album_data: AlbumPost = Depends(album_post_form),
     file: Optional[UploadFile] = None,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
+    user: CurrentUser = Depends(get_current_superuser)
 ):
     name = album_data.name
     artist_id = album_data.artist_id
@@ -104,7 +106,8 @@ async def put_album(
     id: int,
     album_data: AlbumUpdate = Depends(album_update_form),
     file: UploadFile = File(..., description='Cover for album'),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
+    user: CurrentUser = Depends(get_current_superuser)
 ):
     result = await session.execute(select(Album).where(Album.id == id).options(selectinload(Album.artist), selectinload(Album.tracks)))
     album = result.scalar_one_or_none()
@@ -136,7 +139,8 @@ async def patch_album(
     id: int,
     album_data: AlbumPatch = Depends(album_patch_form),
     file: Optional[UploadFile] = None,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
+    user: CurrentUser = Depends(get_current_superuser)
 ):
     result = await session.execute(select(Album).where(Album.id == id).options(selectinload(Album.artist), selectinload(Album.tracks)))
     album = result.scalar_one_or_none()
@@ -164,7 +168,12 @@ async def patch_album(
     return album
 
 @router.delete('/album/{id}', response_model=AlbumRead)
-async def delete_album(request: Request, id: int, session: AsyncSession = Depends(get_async_session)):
+async def delete_album(
+    request: Request,
+    id: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: CurrentUser = Depends(get_current_superuser)
+):
     result = await session.execute(select(Album).where(Album.id == id).options(selectinload(Album.tracks)))
     album = result.scalar_one_or_none()
     check_object_exist(album)
