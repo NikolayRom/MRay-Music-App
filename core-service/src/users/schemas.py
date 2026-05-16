@@ -3,6 +3,7 @@ from typing import Optional, List
 from datetime import datetime
 from src.likes.schemas import LikeRead
 from src.playlists.schemas import PlaylistRead
+from src.history.schemas import HistoryRead
 
 class UserRegister(BaseModel):
     username: str
@@ -47,7 +48,7 @@ class UserAuth(BaseModel):
 class UserRead(BaseModel):
     id: int
     username: str
-    email: Optional[str] = None
+    email: str
     is_active: bool
     is_superuser: bool
     created_at: datetime
@@ -55,5 +56,6 @@ class UserRead(BaseModel):
 
     likes: Optional[List[LikeRead]] = None
     playlists: Optional[List[PlaylistRead]] = None
+    history: Optional[List[HistoryRead]] = None
 
     model_config = ConfigDict(from_attributes=True)

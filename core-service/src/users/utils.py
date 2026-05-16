@@ -6,9 +6,14 @@ from fastapi import UploadFile, File, HTTPException, status
 from typing import List
 from src.config import settings
 from src.storage.client import s3_storage
+from sqlalchemy.orm import selectinload
 
 async def get_user_by_username(username: str, session: AsyncSession) -> User | None:
-    result = await session.execute(select(User).where(User.username == username))
+    result = await session.execute(select(User).where(User.username == username).options(
+        selectinload(User.likes),
+        selectinload(User.playlists),
+        selectinload(User.history)
+    ))
     user = result.scalar_one_or_none()
 
     if not user:
@@ -17,7 +22,12 @@ async def get_user_by_username(username: str, session: AsyncSession) -> User | N
     return user
 
 async def get_user_by_email(email: str, session: AsyncSession) -> User | None:
-    result = await session.execute(select(User).where(User.email == email))
+    
+    result = await session.execute(select(User).where(User.email == email).options(
+        selectinload(User.likes),
+        selectinload(User.playlists),
+        selectinload(User.history)
+    ))    
     user = result.scalar_one_or_none()
 
     if not user:

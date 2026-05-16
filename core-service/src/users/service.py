@@ -13,8 +13,8 @@ async def get_image_key(key: str, file: UploadFile = File(...)) -> str:
     try:
         await streaming_minio_data_upload(key=image_key, content_type=file.content_type, file=file)
         logger.success(f'Successful uploading {file.filename} with {image_key} key')
-    except Exception:
-        logger.error(f'Error, while trying to upload {file.filename} with {image_key} key')
+    except Exception as e:
+        logger.error(f'Error, while trying to upload {file.filename} with {image_key} key: {e}')
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f'Error, while trying to upload {file.filename} with {image_key} key')
 
     return image_key
