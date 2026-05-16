@@ -17,7 +17,7 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_superuser: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.timezone('UTC', func.now()), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.timezone('UTC', func.now()), server_onupdate=func.timezone('UTC', func.now()), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.timezone('UTC', func.now()), onupdate=func.timezone('UTC', func.now()), nullable=False)
 
     likes: Mapped[List['Like']] = relationship(back_populates='user', cascade='all, delete-orphan')
     playlists: Mapped[List['Playlist']] = relationship(back_populates='user', cascade='all, delete-orphan')
