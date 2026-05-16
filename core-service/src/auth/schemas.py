@@ -10,11 +10,6 @@ class TokenPairResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-class RefreshTokenRequest(BaseModel):
-    refresh_token: str
-
-    model_config = ConfigDict(from_attributes=True)
-
 class AccessTokenCreate(BaseModel):
     sub: str
     is_superuser: Optional[str] = None
@@ -38,3 +33,10 @@ class RefreshTokenRead(BaseModel):
     is_active: bool
 
     model_config = ConfigDict(from_attributes=True)
+
+class ResetTokenRequest(BaseModel):
+    token: str
+    new_password: str
+
+class ForgotPasswordRequest(BaseModel):
+    email: str

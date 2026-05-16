@@ -3,11 +3,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.common.logger import logger
 from src.database import get_async_session
 from src.config import settings
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
 from pydantic import BaseModel
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl='/auth/login')
+access_token_scheme = HTTPBearer(
+    scheme_name="Access Token",
+    description="Enter your access token",
+    auto_error=True
+)
 
 def parse_bool(value: any) -> bool:
     if isinstance(value, bool):
@@ -23,9 +27,10 @@ class CurrentUser(BaseModel):
     is_superuser: bool
 
 def verify_access_token(
-    token: str = Depends(oauth2_scheme)
+    credentials: HTTPAuthorizationCredentials = Depends(access_token_scheme)
 ) -> CurrentUser:
     try:
+        token = credentials.credentials
         payload = jwt.decode(jwt=token, key=settings.JWT_SECRET_KEY, algorithms=settings.JWT_ALGORITHM)
         sub = payload.get('sub')
 

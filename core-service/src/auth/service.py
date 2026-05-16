@@ -4,18 +4,31 @@ from src.users.schemas import UserAuth
 from src.users.utils import get_user_by_username
 from src.common.logger import logger
 from src.models import User
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, HTTPBasic, HTTPBasicCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from src.database import get_async_session
 from src.config import settings
-from src.auth.schemas import RefreshTokenRequest
 import jwt
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl='/auth/login')
+access_token_scheme = HTTPBearer(
+    scheme_name="Access Token",
+    description="Enter your access token",
+    auto_error=True
+)
 
-async def authenticate(credentials: UserAuth, session: AsyncSession = Depends(get_async_session)) -> User:
+refresh_token_scheme = HTTPBearer(
+    scheme_name="Refresh Token",
+    description="Enter your refresh token"
+)
+
+security = HTTPBasic()
+
+async def authenticate(
+    credentials: HTTPBasicCredentials = Depends(security),
+    session: AsyncSession = Depends(get_async_session)
+) -> User:
     user = await get_user_by_username(username=credentials.username, session=session)
     
     if not user:
@@ -28,7 +41,7 @@ async def authenticate(credentials: UserAuth, session: AsyncSession = Depends(ge
     
     return user
 
-async def create_tokens(user: User, session: AsyncSession) -> tuple[str, RefreshTokenRequest]:
+async def create_tokens(user: User, session: AsyncSession) -> tuple[str, str]:
     
     access_token = create_access_token(user=user)
 
@@ -47,9 +60,10 @@ async def create_tokens(user: User, session: AsyncSession) -> tuple[str, Refresh
     )
     
 async def verify_refresh_token(
-    token: str = Depends(oauth2_scheme),
+    credentials: HTTPAuthorizationCredentials = Depends(refresh_token_scheme),
     session: AsyncSession = Depends(get_async_session)
-) -> RefreshTokenRequest:
+) -> str:
+    token = credentials.credentials
     try:
         token_data = await get_refresh_token_from_db(token=token, session=session)
         if not token_data:
@@ -65,9 +79,9 @@ async def verify_refresh_token(
         logger.error(f'Refresh token not found: {e}')
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f'Refresh token not found: {e}')
     except jwt.InvalidIssuerError as e:
-        logger.critical(f'Refresh token is inactive. Suspicion of refresh token theft: clear all refresh tokens of user ({token.user_id})')
-        await clear_all_refresh_tokens(user_id=token.user_id, session=session)
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f'Refresh token is inactive. Suspicion of refresh token theft: clear all refresh tokens of user ({token.user_id})')      
+        logger.critical(f'Refresh token is inactive. Suspicion of refresh token theft: clear all refresh tokens of user ({token_data.user_id})')
+        await clear_all_refresh_tokens(user_id=token_data.user_id, session=session)
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f'Refresh token is inactive. Suspicion of refresh token theft: clear all refresh tokens of user ({token_data.user_id})')      
     except jwt.ExpiredSignatureError as e:
         logger.error(f'Refresh token expired: {e}')
         await set_inactive_refresh_token(refresh_token=token_data, session=session)

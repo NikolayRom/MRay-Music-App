@@ -1,6 +1,6 @@
 import hashlib
 import secrets
-from src.auth.schemas import AccessTokenCreate, RefreshTokenRequest
+from src.auth.schemas import AccessTokenCreate
 from datetime import datetime, timedelta, timezone
 import jwt
 from src.config import settings
@@ -45,7 +45,7 @@ def create_access_token(user: User) -> str:
     logger.info(f'Create new access token for user ({user.id})')
     return access_token
 
-def create_refresh_token(user_id: int) -> tuple[RefreshTokenRequest, RefreshToken]:
+def create_refresh_token(user_id: int) -> tuple[str, RefreshToken]:
     
     refresh_token = gen_token()
     refresh_token_db = RefreshToken(
@@ -68,8 +68,8 @@ async def set_inactive_refresh_token(refresh_token: RefreshToken, session: Async
     await session.refresh(refresh_token)
     logger.info(f'Refresh token ({refresh_token.id}) for user ({refresh_token.user_id}) is inactive now')
 
-async def get_refresh_token_from_db(token: RefreshTokenRequest, session: AsyncSession) -> RefreshToken | None:
-    hashed_token = hash_token(token.refresh_token)
+async def get_refresh_token_from_db(token: str, session: AsyncSession) -> RefreshToken | None:
+    hashed_token = hash_token(token)
     result = await session.execute(select(RefreshToken).where(RefreshToken.hashed_token == hashed_token))
     refresh_token = result.scalar_one_or_none()
 
