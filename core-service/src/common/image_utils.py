@@ -3,6 +3,7 @@ from src.common.logger import logger
 from typing import List
 from src.config import settings
 from src.storage.client import s3_storage
+import uuid
 
 def gen_uuid():
     return str(uuid.uuid4().hex)

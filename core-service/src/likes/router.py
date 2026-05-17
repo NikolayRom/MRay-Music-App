@@ -68,7 +68,7 @@ async def toggle_like(
         logger.success(f'Successfully set like to track ({like_data.track_id}) from user ({current_user.id})')
         return like
     else:
-        await session.delete(like)
+        session.delete(like)
         await session.commit()
         logger.success(f'Successfully delete like from user ({current_user.id}) to track ({like_data.track_id})')
         return Response(status_code=status.HTTP_204_NO_CONTENT)

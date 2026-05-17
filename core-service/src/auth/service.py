@@ -1,6 +1,5 @@
 from fastapi import HTTPException, status, Depends
 from src.auth.utils import pwd_context, create_access_token, create_refresh_token, check_token_expired, check_token_inactive, clear_all_refresh_tokens, hash_token, set_inactive_refresh_token, get_refresh_token_from_db
-from src.users.schemas import UserAuth
 from src.users.utils import get_user_by_username
 from src.common.logger import logger
 from src.models import User

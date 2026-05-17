@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, status, Request, Depends, UploadFile, File
-from src.users.schemas import UserRead
+from src.users.schemas import UserRead, UserProfilePatch, UserProfileUpdate
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.common.logger import logger
 from sqlalchemy import select
@@ -7,7 +7,6 @@ from sqlalchemy.orm import selectinload
 from src.common.rbac import get_current_user
 from src.database import get_async_session
 from src.models import User
-from src.users.schemas import UserProfilePatch, UserProfileUpdate
 from src.users.service import user_profile_patch_form, user_profile_update_form
 from typing import Optional
 from src.auth.service import authenticate
@@ -78,7 +77,7 @@ async def update_profile(
 
     except Exception as e:
         logger.error(f'Failed to update user profile: {e}')
-        raise HTTPException(status_code=status.HTTP_500, detail=f'Failed to update user profile: {e}')
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f'Failed to update user profile: {e}')
     
 @router.patch('/profile', response_model=UserRead)
 async def patch_profile(
@@ -111,7 +110,7 @@ async def patch_profile(
     
     try:
         if avatar:
-            avatar_key = get_image_key(key=gen_uuid()+'_'+str(user.id), file=avatar)
+            avatar_key = await get_image_key(key=gen_uuid()+'_'+str(user.id), file=avatar)
     except Exception as e:
         logger.error(f'Failed upload user avatar: {e}')
         raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail=f'Failed upload user avatar: {e}')
@@ -134,4 +133,4 @@ async def patch_profile(
 
     except Exception as e:
         logger.error(f'Failed to update user profile: {e}')
-        raise HTTPException(status_code=status.HTTP_500, detail=f'Failed to update user profile: {e}')
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f'Failed to update user profile: {e}')

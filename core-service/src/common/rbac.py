@@ -36,7 +36,7 @@ def verify_access_token(
 
         if not sub:
             logger.error(f'Invalid token ({token}): "sub" field not found')
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f'Invalid token ({token}): "is_superuser" field not found')
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f'Invalid token ({token}): "sub" field not found')
 
         is_superuser = payload.get('is_superuser', False)
 
