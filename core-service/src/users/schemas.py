@@ -49,6 +49,7 @@ class UserRead(BaseModel):
     id: int
     username: str
     email: str
+    image_key: str
     is_active: bool
     is_superuser: bool
     created_at: datetime

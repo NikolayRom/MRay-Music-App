@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, status, Request, Depends, UploadFile, File
-from src.users.schemas import UserRead, UserAuth
+from src.users.schemas import UserRead
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.common.logger import logger
 from sqlalchemy import select
@@ -8,13 +8,13 @@ from src.common.rbac import get_current_user
 from src.database import get_async_session
 from src.models import User
 from src.users.schemas import UserProfilePatch, UserProfileUpdate
-from src.users.service import user_profile_patch_form, user_profile_update_form, get_image_key
+from src.users.service import user_profile_patch_form, user_profile_update_form
 from typing import Optional
 from src.auth.service import authenticate
-from src.common.rbac import verify_access_token, CurrentUser
+from src.common.rbac import CurrentUser
 from src.users.utils import get_user_by_email, get_user_by_username
 from src.auth.utils import pwd_context
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from src.common.image_utils import get_image_key, gen_uuid
 
 router = APIRouter(prefix='/user')
 
@@ -59,7 +59,7 @@ async def update_profile(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f'Invalid password2 for user {user.username}')
     
     try:
-        avatar_key = await get_image_key(key=str(user.id), file=avatar)
+        avatar_key = await get_image_key(key=gen_uuid()+'_'+str(user.id), file=avatar)
     except Exception as e:
         logger.error(f'Failed upload user avatar: {e}')
         raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail=f'Failed upload user avatar: {e}')
@@ -111,7 +111,7 @@ async def patch_profile(
     
     try:
         if avatar:
-            avatar_key = get_image_key(key=str(user.id), file=avatar)
+            avatar_key = get_image_key(key=gen_uuid()+'_'+str(user.id), file=avatar)
     except Exception as e:
         logger.error(f'Failed upload user avatar: {e}')
         raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail=f'Failed upload user avatar: {e}')
