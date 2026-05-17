@@ -198,7 +198,7 @@ async def delete_album(
             logger.error('Can\'t delete tracks for artist')
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Can\'t delete tracks for artist')
         
-    await session.delete(album) 
+    session.delete(album) 
     await session.commit()
     logger.success(f'Successful delete {album} album with {album.id} id')
 

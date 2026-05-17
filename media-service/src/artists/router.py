@@ -200,7 +200,7 @@ async def delete_artist(
             logger.error(f'Error while trying to delete {key}: {e}')
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f'Error while trying to delete {key}: {e}')
 
-    await session.delete(artist)
+    session.delete(artist)
     await session.commit()
     logger.success(f'Successful delete {artist} artist with {artist.id} id')
 

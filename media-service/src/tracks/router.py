@@ -244,7 +244,7 @@ async def delete_track(
     if track.image_key:
         await default_minio_data_delete(key=track.image_key, is_public=True)
     await default_minio_data_delete(key=track.s3_key)
-    await session.delete(track)
+    session.delete(track)
     await session.commit()
     logger.success(f'Successful delete track {track} with {track.id} id')
     return track
