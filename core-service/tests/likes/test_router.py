@@ -10,8 +10,8 @@ from datetime import datetime, timezone
 @pytest.fixture
 def mock_session():
     session = AsyncMock()
-    session.add = MagicMock()    # Синхронный метод
-    session.delete = MagicMock() # Синхронный метод
+    session.add = MagicMock()   
+    session.delete = AsyncMock()
     session.commit = AsyncMock()
     session.refresh = AsyncMock()
     return session
@@ -24,10 +24,8 @@ def mock_current_user():
 def mock_request():
     return MagicMock()
 
-# 1. Тест GET / (get_all_likes)
 @pytest.mark.asyncio
 async def test_get_all_likes_success(mock_session, mock_current_user, mock_request):
-    # Создаем список фейковых лайков
     fake_likes = [
         Like(id=1, user_id=1, track_id=101, created_at=datetime.now(timezone.utc)),
         Like(id=2, user_id=1, track_id=102, created_at=datetime.now(timezone.utc))
@@ -43,7 +41,6 @@ async def test_get_all_likes_success(mock_session, mock_current_user, mock_reque
     assert result.items[0].track_id == 101
     assert mock_session.execute.called
 
-# 2. Тесты GET /{track_id} (get_like)
 @pytest.mark.asyncio
 async def test_get_like_found(mock_session, mock_current_user, mock_request):
     fake_like = Like(id=1, user_id=1, track_id=555)
@@ -69,20 +66,16 @@ async def test_get_like_not_found(mock_session, mock_current_user, mock_request)
     assert exc.value.status_code == status.HTTP_404_NOT_FOUND
     assert "not found" in exc.value.detail
 
-# 3. Тесты POST / (toggle_like)
 @pytest.mark.asyncio
 async def test_toggle_like_create(mock_session, mock_current_user, mock_request):
-    """Сценарий: лайка нет, он должен создаться (201 Created)."""
     like_data = LikeData(track_id=777)
     
-    # Имитируем, что лайк в базе не найден
     mock_result = MagicMock()
     mock_result.scalar_one_or_none.return_value = None
     mock_session.execute.return_value = mock_result
 
     result = await toggle_like(mock_request, like_data, mock_current_user, mock_session)
 
-    # Проверяем создание
     assert isinstance(result, Like)
     assert result.track_id == 777
     mock_session.add.assert_called_once()
@@ -91,18 +84,15 @@ async def test_toggle_like_create(mock_session, mock_current_user, mock_request)
 
 @pytest.mark.asyncio
 async def test_toggle_like_delete(mock_session, mock_current_user, mock_request):
-    """Сценарий: лайк уже есть, он должен удалиться (204 No Content)."""
     like_data = LikeData(track_id=777)
     existing_like = Like(id=10, user_id=1, track_id=777)
     
-    # Имитируем, что лайк найден
     mock_result = MagicMock()
     mock_result.scalar_one_or_none.return_value = existing_like
     mock_session.execute.return_value = mock_result
 
     result = await toggle_like(mock_request, like_data, mock_current_user, mock_session)
 
-    # Проверяем удаление
     assert isinstance(result, Response)
     assert result.status_code == status.HTTP_204_NO_CONTENT
     mock_session.delete.assert_called_once_with(existing_like)
@@ -110,7 +100,6 @@ async def test_toggle_like_delete(mock_session, mock_current_user, mock_request)
 
 @pytest.mark.asyncio
 async def test_toggle_like_db_exception(mock_session, mock_current_user, mock_request):
-    """Проверка устойчивости при ошибке БД."""
     like_data = LikeData(track_id=777)
     mock_session.execute.side_effect = Exception("DB Error")
 
