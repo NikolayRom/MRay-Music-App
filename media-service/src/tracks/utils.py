@@ -4,9 +4,6 @@ from sqlalchemy import select
 from src.models import Artist, Album
 from src.common.logger import logger
 
-def gen_uuid():
-    return str(uuid.uuid4().hex)
-
 def get_id3_size(header_bytes: bytes) -> int:
     size = (header_bytes[9] & 0x7f) | \
            ((header_bytes[8] & 0x7f) << 7) | \
