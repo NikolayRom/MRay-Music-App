@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, Depends, Query, UploadFile, File, HTTPException, status
+from fastapi import APIRouter, Request, Depends, Query, UploadFile, File, HTTPException, status, Response
 from src.artists.schemas import ArtistRead, ArtistsAllRead, ArtistPost, ArtistUpdate, ArtistPatch
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database import get_async_session
@@ -13,6 +13,8 @@ from src.common.s3_utils import *
 from src.common.validators import *
 from src.common.logger import logger
 from src.common.rbac import CurrentUser, get_current_superuser, get_current_user
+from src.schemas.common import ArtistShortRead
+from src.common.image_utils import get_file_full, get_file_key
 
 router = APIRouter()
 
@@ -58,7 +60,7 @@ async def get_artist(request: Request, id: int, session: AsyncSession = Depends(
     check_object_exist(artist)
     return artist
 
-@router.post('/artist', response_model=ArtistRead)
+@router.post('/artist', response_model=ArtistShortRead)
 async def post_artist(
     request: Request,
     artist_obj: ArtistPost = Depends(artist_post_form),
@@ -67,7 +69,7 @@ async def post_artist(
     user: CurrentUser = Depends(get_current_superuser)
 ):
     name = artist_obj.name
-    if not await check_unique_artist_name(name):
+    if not await check_unique_artist_name(name=name, session=session):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f'Artist with {name} name already exist')
     
     artist = Artist(
@@ -82,7 +84,7 @@ async def post_artist(
     logger.info(f'Save new artist {artist} with {artist.id} id')
 
     if file:
-        image_key = get_image_key_from_file(key=artist.id, file=file)
+        image_key = get_image_key_from_file(key=get_file_key(file=file), file=file)
         try:
             await streaming_minio_data_upload(key=image_key, content_type=file.content_type, file=file, is_public=True)
             artist.image_key = image_key
@@ -108,12 +110,15 @@ async def put_artist(
     check_object_exist(artist)
     
     name = artist_obj.name
-    if not await check_unique_artist_name(name):
+    if not await check_unique_artist_name(name=name, session=session):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f'Artist with {name} name already exist')
 
     artist.name = name
     
-    image_key = get_image_key_from_file(key=artist.id, file=file)
+    if artist.image_key:
+        await default_minio_data_delete(key=artist.image_key, is_public=True)
+
+    image_key = get_image_key_from_file(key=get_file_key(file=file), file=file)
     try:
         await streaming_minio_data_upload(key=image_key, content_type=file.content_type, file=file, is_public=True)
         artist.image_key = image_key
@@ -142,12 +147,14 @@ async def patch_artist(
     
     if artist_obj.name:
         name = artist_obj.name
-        if not await check_unique_artist_name(name):
+        if not await check_unique_artist_name(name=name, session=session):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f'Artist with {name} name already exist')
         artist.name = name
     
     if file:
-        image_key = get_image_key_from_file(key=artist.id, file=file)
+        if artist.image_key:
+            await default_minio_data_delete(key=artist.image_key, is_public=True)
+        image_key = get_image_key_from_file(key=get_file_key(file=file), file=file)
         try:
             await streaming_minio_data_upload(key=image_key, content_type=file.content_type, file=file, is_public=True)
             artist.image_key = image_key
@@ -161,7 +168,7 @@ async def patch_artist(
     logger.info(f'Save updated {artist} artist with {artist.id} id')
     return artist
 
-@router.delete('/artist/{id}', response_model=ArtistRead)
+@router.delete('/artist/{id}')
 async def delete_artist(
     request: Request,
     id: int,
@@ -200,8 +207,8 @@ async def delete_artist(
             logger.error(f'Error while trying to delete {key}: {e}')
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f'Error while trying to delete {key}: {e}')
 
-    session.delete(artist)
+    await session.delete(artist)
     await session.commit()
     logger.success(f'Successful delete {artist} artist with {artist.id} id')
 
-    return artist
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

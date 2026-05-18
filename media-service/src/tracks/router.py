@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status, Request, Depends, UploadFile, File, Query
+from fastapi import APIRouter, HTTPException, status, Response, Request, Depends, UploadFile, File, Query
 from fastapi.responses import StreamingResponse
 from src.storage.client import s3_storage
 from sqlalchemy import select
@@ -10,7 +10,7 @@ from src.tracks.schemas import TrackRead, TrackPost, TrackUpdate, TrackPatch, Tr
 from typing import List, Optional
 from mutagen.mp3 import MP3
 import io
-from src.tracks.utils import gen_uuid
+from src.common.image_utils import gen_uuid, get_file_full, get_file_key
 from src.tracks.service import *
 from src.common.s3_utils import *
 from src.common.validators import *
@@ -22,6 +22,7 @@ router = APIRouter()
 @router.get('/tracks', response_model=TracksAllRead)
 async def get_all_tracks(
     request: Request,
+    ids: Optional[List[int]] = Query(None, description='Filter by list of track IDs'),
     search: Optional[str] = Query(None, min_length=2, description="Search by title. Special characters (e.g., &) must be URL-encoded. Example: 'Rock%20%26%20Roll'"),
     genre: Optional[List[str]] = Query(None),
     artist_id: Optional[int] = None,
@@ -31,8 +32,15 @@ async def get_all_tracks(
     session: AsyncSession = Depends(get_async_session)
 ):
 
-    query = select(Track).options(selectinload(Track.artist), selectinload(Track.album))
-    if cursor:
+    query = select(Track).options(
+        selectinload(Track.artist),
+        selectinload(Track.album)
+    )
+
+    if ids:
+        query = query.where(Track.id.in_(ids))
+
+    if cursor and not ids:
         query = query.where(Track.id > cursor)
 
     if search:
@@ -89,7 +97,8 @@ async def post_track(
 
     await check_artist_and_album_id_for_track(artist_id=track_data.artist_id, album_id=track_data.album_id, session=session)
 
-    file_key = f'{gen_uuid()}_{file_track.filename.rsplit('.', 1)[0]}'
+    file_key = get_file_key(file=file_track)
+    file_full = get_file_full(file=file_track)
 
     try:
         
@@ -99,7 +108,8 @@ async def post_track(
             logger.error(f'Can\'t read metadata of mp3 file: {e}')
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f'Can\'t read metadata of mp3 file: {e}')
         try:
-            await streaming_minio_data_upload(key=file_key, content_type='audio/mpeg', file=file_track)
+            await streaming_minio_data_upload(key=file_full, content_type='audio/mpeg', file=file_track)
+            await file_track.seek(0)
         except Exception as e:
             logger.error(f'Can\'t upload object from minio storage: {e}')
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f'Can\'t upload object from minio storage: {e}')
@@ -118,7 +128,7 @@ async def post_track(
 
             track = Track(
                 title=get_track_title(key=file_key, audio=audio) if not track_data.title else track_data.title,
-                s3_key=file_key,
+                s3_key=file_full,
                 image_key=await get_track_image_key(key=file_key, buffer=buffer, file=file_cover),
                 duration=get_track_duration(audio=audio),
                 artist_id=artist_and_album_id[0] if not track_data.artist_id else track_data.artist_id,
@@ -160,7 +170,7 @@ async def put_track(
     try:
 
         check_file_size(file=file)
-        image_key = get_image_key_from_file(key=track.s3_key, file=file)
+        image_key = get_image_key_from_file(key=track.s3_key.rsplit('.', 1)[0], file=file)
 
         if track.image_key:
             await default_minio_data_delete(key=track.image_key, is_public=True)
@@ -205,7 +215,7 @@ async def patch_track(
         try:
 
             check_file_size(file=file)
-            image_key = get_image_key_from_file(key=track.s3_key, file=file)
+            image_key = get_image_key_from_file(key=track.s3_key.rsplit('.', 1)[0], file=file)
 
             if track.image_key:
                 await default_minio_data_delete(key=track.image_key, is_public=True)
@@ -218,9 +228,14 @@ async def patch_track(
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Can\'t upload cover for mp3 track')
 
     try:
-
-        for key, value in track_data.model_dump(exclude_unset=True, exclude_none=True).items():
-            setattr(track, key, value)
+        if track_data.title:
+            track.title = track_data.title
+        if track_data.artist_id:
+            track.artist_id = track_data.artist_id
+        if track_data.album_id:
+            track.album_id = track_data.album_id
+        if track_data.genre:
+            track.genre = track_data.genre
         logger.success(f'Successful patch for track {track} with {track.id} id')
     except Exception:
         logger.error('Invalid parameters for track')
@@ -231,7 +246,7 @@ async def patch_track(
     logger.info(f'Save updated track {track} with {track.id} id')
     return track
 
-@router.delete('/track/{track_id}', response_model=TrackRead)
+@router.delete('/track/{track_id}')
 async def delete_track(
     request: Request,
     track_id: int,
@@ -244,10 +259,10 @@ async def delete_track(
     if track.image_key:
         await default_minio_data_delete(key=track.image_key, is_public=True)
     await default_minio_data_delete(key=track.s3_key)
-    session.delete(track)
+    await session.delete(track)
     await session.commit()
-    logger.success(f'Successful delete track {track} with {track.id} id')
-    return track
+    logger.success(f'Successful delete track with {track_id} id')
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 @router.get('/stream/{track_id}', response_class=StreamingResponse)
 async def stream_from_minio(request: Request, track_id: int, session: AsyncSession = Depends(get_async_session)) -> StreamingResponse:

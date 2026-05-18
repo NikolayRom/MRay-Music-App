@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, Depends, Query, UploadFile, File, HTTPException, status
+from fastapi import APIRouter, Request, Depends, Query, UploadFile, File, HTTPException, status, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database import get_async_session
 from src.models import Artist, Album
@@ -13,6 +13,8 @@ from src.common.s3_utils import *
 from src.common.validators import *
 from src.common.logger import logger
 from src.common.rbac import CurrentUser, get_current_superuser, get_current_user
+from src.common.image_utils import get_file_full, get_file_key
+from src.schemas.common import AlbumShortRead
 
 router = APIRouter()
 
@@ -62,7 +64,7 @@ async def get_album(request: Request, id: int, session: AsyncSession = Depends(g
     check_object_exist(album)
     return album
 
-@router.post('/album', response_model=AlbumRead)
+@router.post('/album', response_model=AlbumShortRead)
 async def post_album(
     request: Request,
     album_data: AlbumPost = Depends(album_post_form),
@@ -88,7 +90,7 @@ async def post_album(
     logger.info(f'Save new album {album} by {artist_id} artist id with {album.id} id')
 
     if file:
-        image_key = get_image_key_from_file(key=album.id, file=file)
+        image_key = get_image_key_from_file(key=get_file_key(file=file), file=file)
         try:
             await streaming_minio_data_upload(key=image_key, content_type=file.content_type, file=file, is_public=True)
             album.image_key = image_key
@@ -119,7 +121,10 @@ async def put_album(
     album.name = name
     album.artist_id = artist_id
     
-    image_key = get_image_key_from_file(key=album.id, file=file)
+    if album.image_key:
+        await default_minio_data_delete(key=album.image_key, is_public=True)
+
+    image_key = get_image_key_from_file(key=get_file_key(file=file), file=file)
     try:
         await streaming_minio_data_upload(key=image_key, content_type=file.content_type, file=file, is_public=True)
         album.image_key = image_key
@@ -153,7 +158,9 @@ async def patch_album(
         album.artist_id = album_data.artist_id
 
     if file:
-        image_key = get_image_key_from_file(key=album.id, file=file)
+        if album.image_key:
+            await default_minio_data_delete(key=album.image_key, is_public=True)
+        image_key = get_image_key_from_file(key=get_file_key(file=file), file=file)
         try:
             await streaming_minio_data_upload(key=image_key, content_type=file.content_type, file=file, is_public=True)
             album.image_key = image_key
@@ -167,7 +174,7 @@ async def patch_album(
     logger.info(f'Save updated {album} album with {album.id} id')
     return album
 
-@router.delete('/album/{id}', response_model=AlbumRead)
+@router.delete('/album/{id}')
 async def delete_album(
     request: Request,
     id: int,
@@ -198,8 +205,8 @@ async def delete_album(
             logger.error('Can\'t delete tracks for artist')
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Can\'t delete tracks for artist')
         
-    session.delete(album) 
+    await session.delete(album) 
     await session.commit()
     logger.success(f'Successful delete {album} album with {album.id} id')
 
-    return album
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
