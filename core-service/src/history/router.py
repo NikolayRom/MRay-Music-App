@@ -96,7 +96,7 @@ async def delete_history(
         logger.warning(f'Track history ({history_data.track_id}) from user with {current_user.id} id not found')
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Track history ({history_data.track_id}) from user with {current_user.id} id not found')
 
-    session.delete(history)
+    await session.delete(history)
     await session.commit()
     logger.success(f'Successfully delete track history ({history_data.track_id}) from user ({current_user.id})')
 

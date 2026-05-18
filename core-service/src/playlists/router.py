@@ -179,7 +179,7 @@ async def delete_playlist(
 
     await default_minio_data_delete(key=playlist.image_key)
 
-    session.delete(playlist)
+    await session.delete(playlist)
     await session.commit()
     logger.success(f'Successfully delete playlist with {playlist_id} id for user with {current_user.id} id')
 
