@@ -2,7 +2,7 @@ from fastapi import APIRouter, Request, Depends, Query, UploadFile, File, HTTPEx
 from src.artists.schemas import ArtistRead, ArtistsAllRead, ArtistPost, ArtistUpdate, ArtistPatch
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database import get_async_session
-from src.models import Artist
+from src.models import Artist, Track
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from src.config import settings
@@ -55,7 +55,10 @@ async def get_all_artists(
 
 @router.get('/artist/{id}', response_model=ArtistRead)
 async def get_artist(request: Request, id: int, session: AsyncSession = Depends(get_async_session)):
-    result = await session.execute(select(Artist).where(Artist.id == id).options(selectinload(Artist.albums), selectinload(Artist.tracks)))
+    result = await session.execute(select(Artist).where(Artist.id == id).options(
+        selectinload(Artist.albums),
+        selectinload(Artist.tracks).selectinload(Track.album)
+    ))
     artist = result.scalar_one_or_none()
     check_object_exist(artist)
     return artist

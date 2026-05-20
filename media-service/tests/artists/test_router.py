@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi import HTTPException, UploadFile, status
-from datetime import datetime
+from datetime import datetime, timedelta
 from src.artists.router import get_all_artists, get_artist, post_artist, patch_artist, put_artist, delete_artist
 from src.models import Artist, Album, Track
 from src.artists.schemas import ArtistPost, ArtistPatch, ArtistUpdate
@@ -17,40 +17,48 @@ class TestArtistRouter:
         self.mock_session.delete = AsyncMock()
 
     def create_mock_artist_full(self, id: int, name: str, image_key="art.jpg", album_count=1, track_count=1):
-        """Создает мока артиста с заданным количеством связанных объектов"""
         artist = MagicMock(spec=Artist)
         artist.id = id
         artist.name = name
         artist.image_key = image_key
         artist.created_at = datetime.now()
 
-        # Создаем альбомы
         albums = []
         for i in range(album_count):
             alb = MagicMock(spec=Album)
             alb.id = i
             alb.name = f"Album {i}"
             alb.image_key = f"alb_img_{i}.jpg"
+            alb.created_at = datetime.now()
             albums.append(alb)
         
-        # Создаем треки
         tracks = []
         for i in range(track_count):
             tr = MagicMock(spec=Track)
             tr.id = i
             tr.title = f"Track {i}"
-            tr.s3_key = f"tr_audio_{i}.mp3" # Приватный
-            tr.image_key = f"tr_img_{i}.jpg" # Публичный
+            tr.genre = ["Pop"]
+            tr.duration = timedelta(seconds=180)
+            tr.created_at = datetime.now()
+            tr.image_key = f"tr_img_{i}.jpg"
+            
+            tr.artist = artist 
+            
+            tr_album = MagicMock(spec=Album)
+            tr_album.id = 999
+            tr_album.name = "Some Album"
+            tr_album.image_key = "some_img.jpg"
+            tr_album.created_at = datetime.now()
+            tr.album = tr_album
+            
             tracks.append(tr)
 
         artist.albums = albums
         artist.tracks = tracks
         return artist
 
-    # --- GET /artists ---
-
     async def test_get_all_artists_pagination(self):
-        """Проверка пагинации и структуры ответа всех артистов"""
+        
         artist1 = self.create_mock_artist_full(1, "Artist 1")
         artist2 = self.create_mock_artist_full(2, "Artist 2")
         artist3 = self.create_mock_artist_full(3, "Artist 3")
@@ -69,7 +77,7 @@ class TestArtistRouter:
         assert response.has_more is True
         assert response.next_cursor == 2
         assert response.items[0].name == "Artist 1"
-        # Проверка вложенности
+        
         assert response.items[0].albums[0].name == "Album 0"
 
     async def test_get_all_artists_empty(self):
@@ -85,7 +93,7 @@ class TestArtistRouter:
         assert response.items == []
         assert response.has_more is False
 
-    # --- GET /artist/{id} ---
+    
 
     async def test_get_artist_success(self):
         artist = self.create_mock_artist_full(1, "The Star")
@@ -103,18 +111,18 @@ class TestArtistRouter:
         mock_result.scalar_one_or_none.return_value = None
         self.mock_session.execute.return_value = mock_result
         
-        # Имитируем поведение валидатора
+        
         mock_check.side_effect = HTTPException(status_code=404, detail="Not found")
 
         with pytest.raises(HTTPException) as exc:
             await get_artist(request=MagicMock(), id=99, session=self.mock_session)
         assert exc.value.status_code == 404
 
-    # --- POST /artist ---
+    
 
     @patch("src.artists.router.check_unique_artist_name")
     async def test_post_artist_success_no_file(self, mock_check_unique):
-        # Имя свободно
+        
         mock_check_unique.return_value = True
         
         artist_data = ArtistPost(name="New Legend")
@@ -133,7 +141,7 @@ class TestArtistRouter:
 
     @patch("src.artists.router.check_unique_artist_name")
     async def test_post_artist_duplicate_name(self, mock_check_unique):
-        # Имя уже занято
+        
         mock_check_unique.return_value = False
         
         artist_data = ArtistPost(name="Existing Artist")
@@ -174,7 +182,7 @@ class TestArtistRouter:
 
         assert result.image_key == "artist_uuid.png"
         assert mock_s3_up.called
-        # Один коммит после создания, второй после обновления image_key
+        
         assert self.mock_session.commit.call_count == 2
 
     @patch("src.artists.router.streaming_minio_data_upload")
@@ -198,7 +206,7 @@ class TestArtistRouter:
         
         assert exc.value.status_code == 500
 
-    # --- Тесты PUT /artist/{id} ---
+    
 
     @patch("src.artists.router.check_unique_artist_name")
     @patch("src.artists.router.default_minio_data_delete")
@@ -210,7 +218,7 @@ class TestArtistRouter:
         mock_result.scalar_one_or_none.return_value = artist
         self.mock_session.execute.return_value = mock_result
         
-        mock_unique.return_value = True # Новое имя уникально
+        mock_unique.return_value = True 
         mock_file = MagicMock(spec=UploadFile)
         mock_file.filename = 'test name'
         mock_file.content_type = "image/jpeg"
@@ -238,7 +246,7 @@ class TestArtistRouter:
         mock_result.scalar_one_or_none.return_value = artist
         self.mock_session.execute.return_value = mock_result
         
-        mock_unique.return_value = False # Имя занято
+        mock_unique.return_value = False 
 
         with pytest.raises(HTTPException) as exc:
             await put_artist(
@@ -248,7 +256,7 @@ class TestArtistRouter:
             )
         assert exc.value.status_code == 400
 
-    # --- Тесты PATCH /artist/{id} ---
+    
 
     @patch("src.artists.router.check_unique_artist_name")
     @patch("src.artists.router.check_object_exist")
@@ -268,13 +276,13 @@ class TestArtistRouter:
         assert artist.name == "Updated"
         assert self.mock_session.commit.called
 
-    # --- Тесты DELETE /artist/{id} ---
+    
 
     @patch("src.artists.router.default_minio_data_delete")
     @patch("src.artists.router.check_object_exist")
     async def test_delete_artist_full_cleanup(self, mock_exist, mock_delete):
-        # Создаем артиста с 2 альбомами и 2 треками
-        # Итого ключей: 1 (арт) + 2 (альбомы) + 2*2 (треки: аудио + фото) = 7
+        
+        
         artist = self.create_mock_artist_full(1, "Dead Artist", album_count=2, track_count=2)
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = artist
@@ -287,15 +295,8 @@ class TestArtistRouter:
             user=MagicMock()
         )
 
-        # Проверяем количество вызовов удаления из S3
-        # 2 приватных (аудио треков) + 5 публичных (арт + 2 альбома + 2 фото треков)
         assert mock_delete.call_count == 7
         
-        # Проверяем вызовы с разными параметрами is_public
-        # 2 раза для приватных ключей (is_public по дефолту False)
-        # 5 раз для публичных (is_public=True)
-        
-        # Проверка удаления из БД
         self.mock_session.delete.assert_called_once_with(artist)
         assert response.status_code == 204
 
@@ -307,7 +308,7 @@ class TestArtistRouter:
         mock_result.scalar_one_or_none.return_value = artist
         self.mock_session.execute.return_value = mock_result
         
-        # Имитируем ошибку S3
+        
         mock_delete.side_effect = Exception("Delete failed")
 
         with pytest.raises(HTTPException) as exc:

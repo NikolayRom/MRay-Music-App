@@ -1,10 +1,10 @@
-
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi import HTTPException, UploadFile
 from src.albums.router import get_all_albums, get_album, post_album, put_album, patch_album, delete_album
 from src.models import Album, Artist, Track
 from src.albums.schemas import AlbumPost, AlbumPatch, AlbumUpdate
+from datetime import datetime, timedelta
 
 @pytest.mark.asyncio
 class TestAlbumRouter:
@@ -20,30 +20,32 @@ class TestAlbumRouter:
         self.mock_session.delete = AsyncMock() 
 
     def create_mock_album(self, id: int, name: str, image_key: str = "album_image.jpg", artist_id: int = 1):
-        
-        
         artist = MagicMock(spec=Artist)
         artist.id = artist_id
         artist.name = "Test Artist"
         artist.image_key = "artist_image.jpg"
+        artist.created_at = datetime.now()
 
-        
-        track = MagicMock(spec=Track)
-        track.id = 100
-        track.title = "Test Track"
-        track.image_key = "track_image.jpg"
-        track.s3_key = "track_audio.mp3"
-
-        
         album = MagicMock(spec=Album)
         album.id = id
         album.name = name
         album.image_key = image_key
-        album.artist_id = artist_id 
-        
+        album.artist_id = artist_id
         album.artist = artist
-        album.tracks = [track]
+        album.created_at = datetime.now()
+
+        track = MagicMock(spec=Track)
+        track.id = 100
+        track.title = "Test Track"
+        track.image_key = "track_image.jpg"
+        track.genre = ["Rock"]
+        track.duration = timedelta(seconds=200)
+        track.created_at = datetime.now()
         
+        track.album = album  
+        track.artist = artist 
+
+        album.tracks = [track]
         return album
 
     async def test_get_all_albums_empty(self):

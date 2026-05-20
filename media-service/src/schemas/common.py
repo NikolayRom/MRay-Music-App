@@ -28,6 +28,9 @@ class TrackShortRead(BaseModel):
     duration: Annotated[timedelta, Field(exclude=True), SkipJsonSchema()]
     created_at: datetime
 
+    album: Optional[AlbumShortRead]
+    artist: Optional[ArtistShortRead]
+
     model_config = ConfigDict(from_attributes=True)
 
     @computed_field
