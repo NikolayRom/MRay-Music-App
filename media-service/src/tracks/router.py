@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, status, Response, Request, Depends, UploadFile, File, Query
 from fastapi.responses import StreamingResponse
 from src.storage.client import s3_storage
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database import get_async_session
@@ -43,8 +43,6 @@ async def get_all_tracks(
     if cursor and not ids:
         query = query.where(Track.id > cursor)
 
-    if search:
-        query = query.where(Track.title.ilike(f'%{search}%'))
 
     if artist_id:
         query = query.where(Track.artist_id == artist_id)
@@ -54,7 +52,19 @@ async def get_all_tracks(
     if genre:
         query = query.where(Track.genre.op('&&')(genre))
 
-    query = query.order_by(Track.id).limit(limit+1)
+    if search:
+        query = query.where(Track.title.ilike(f'%{search}%'))
+        starts_with_weight = Track.title.ilike(f'%{search}%')
+        position = func.strpos(func.lower(Track.title), search.lower())
+        relevance = func.similarity(Track.title, search)
+        query  = query.order_by(
+            starts_with_weight.desc(),
+            position.asc(),
+            relevance.desc(),
+            Track.id.asc()
+        )
+    else:
+        query = query.order_by(Track.id.asc()).limit(limit+1)
 
     result = await session.execute(query)
     tracks = result.scalars().all()
