@@ -7,12 +7,14 @@ import { formatTime } from '../utils/formatTime';
 import type { Artist } from '../types';
 import { PlayingAnimation } from '../components/PlayingAnimation';
 import { MediaImage } from '../components/MediaImage';
+import { TrackActionMenu } from '../components/TrackActionMenu';
 
 export default function ArtistDetail() {
   const { id } = useParams();
   const [artist, setArtist] = useState<Artist | null>(null);
   const navigate = useNavigate()
   
+  const [activeMenuId, setActiveMenuId] = useState<number | null>(null);
   const { currentTrack, isPlaying, openInfo, togglePlay, handlePlay } = usePlayerStore();
 
   useEffect(() => {
@@ -31,7 +33,7 @@ export default function ArtistDetail() {
 
   return (
     <div className="text-white pb-24">
-      <div className="h-64 bg-gradient-to-b from-zinc-700 to-zinc-900 p-8 flex items-end gap-6">
+      <div className="h-64 bg-gradient-to-b from-red-900 to-zinc-900 p-8 flex items-end gap-6">
         <div className="w-48 h-48 shadow-2xl rounded-full overflow-hidden flex-shrink-0 bg-zinc-800">
           
           <div className="w-48 h-48 shadow-2xl rounded-full overflow-hidden flex-shrink-0">
@@ -105,8 +107,13 @@ export default function ArtistDetail() {
                   )}
                 </div>
                 
-                <div className="text-zinc-400 text-sm w-16 flex items-center justify-end gap-2">
-                  {formatTime(track.duration_seconds)}
+                <div className="flex items-center gap-4">
+                  <div className="text-zinc-400 text-sm">{formatTime(track.duration_seconds)}</div>
+                  <TrackActionMenu 
+                    trackId={track.id} 
+                    isOpen={activeMenuId === track.id}
+                    onToggle={() => setActiveMenuId(activeMenuId === track.id ? null : track.id)}
+                  />
                 </div>
               </div>
             );

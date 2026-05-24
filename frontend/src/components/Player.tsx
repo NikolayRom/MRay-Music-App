@@ -4,14 +4,18 @@ import { usePlayerStore } from '../store/usePlayerStore';
 import { formatTime } from '../utils/formatTime';
 import { Link } from 'react-router-dom';
 import { MediaImage } from './MediaImage';
+import { useInteractionStore } from '../store/useInteractionStore';
+import { LikeButton } from './LikeButton';
+import { TrackActionMenu } from './TrackActionMenu';
 
 export const Player = () => {
     const { currentTrack, isPlaying, volume, togglePlay, isMuted, toggleMute, setVolume, toggleShuffle, isShuffle, prevTrack, nextTrack, toggleRepeat, repeatMode, openInfo } = usePlayerStore();
     const audioRef = useRef<HTMLAudioElement>(null);
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
-
+    const { addToHistory } = useInteractionStore();
     const [buffered, setBuffered] = useState(0);
+    const [activeMenuId, setActiveMenuId] = useState<number | null>(null);
 
     const updateBuffer = (audio: HTMLAudioElement) => {
         if (audio.duration > 0) {
@@ -132,6 +136,25 @@ export const Player = () => {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [togglePlay]);
 
+    
+    useEffect(() => {
+        let timer: number;
+
+        
+        if (currentTrack && isPlaying) {
+            timer = setTimeout(() => {
+            addToHistory(currentTrack.id);
+            }, 5000);
+        }
+
+        
+        return () => {
+            if (timer) {
+            clearTimeout(timer);
+            }
+        };
+    }, [currentTrack?.id, isPlaying]); 
+
     return (
         <div className={`
             fixed bottom-0 left-0 right-0 h-24 bg-black border-t border-zinc-900 px-4 
@@ -190,6 +213,13 @@ export const Player = () => {
 
                 <div className="flex flex-col items-center gap-2 w-[40%]">
                     <div className="flex items-center gap-6 text-zinc-400">
+                        
+                        <TrackActionMenu 
+                        trackId={currentTrack.id} 
+                        isOpen={activeMenuId === currentTrack.id}
+                        onToggle={() => setActiveMenuId(activeMenuId === currentTrack.id ? null : currentTrack.id)}
+                        />
+                        
                         <Shuffle
                             size={20}
                             onClick={toggleShuffle} 
@@ -212,6 +242,8 @@ export const Player = () => {
                             >
                             {repeatMode === 'one' ? <Repeat1 size={20} /> : <Repeat size={20} />}
                         </button>
+                        
+                        <LikeButton trackId={currentTrack.id} />
                     </div>
                 
                     <div className="w-full flex items-center gap-2 group">

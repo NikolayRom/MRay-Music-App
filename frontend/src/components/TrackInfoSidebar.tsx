@@ -3,13 +3,16 @@ import { usePlayerStore } from '../store/usePlayerStore';
 import { formatTime } from '../utils/formatTime';
 import { Link } from 'react-router-dom';
 import { MediaImage } from './MediaImage';
+import { TrackActionMenu } from './TrackActionMenu';
+import { useState } from 'react';
+import { LikeButton } from './LikeButton';
 
 export const TrackInfoSidebar = () => {
   const { infoTrack, isRightSidebarOpen, closeInfo, isPlaying, handlePlay, currentTrack } = usePlayerStore();
 
   if (!infoTrack) return null;
 
-  const isCurrent = currentTrack?.id === infoTrack.id;
+  const [activeMenuId, setActiveMenuId] = useState<number | null>(null);
 
   return (
     <div className={`
@@ -41,16 +44,29 @@ export const TrackInfoSidebar = () => {
             </Link>
           </div>
 
-          <button 
-            onClick={() => handlePlay([infoTrack], 0)}
-            className="p-4 bg-green-500 rounded-full text-black hover:scale-105 transition-transform shadow-lg"
-          >
-            {isCurrent && isPlaying ? (
-              <Pause fill="black" size={24} />
-            ) : (
-              <Play fill="black" size={24} />
-            )}
-          </button>
+          <div className="flex items-center gap-3 mt-2">
+            {/* Кнопка Play */}
+            <button 
+              onClick={() => handlePlay([infoTrack], 0)}
+              className="bg-green-500 text-black p-2 rounded-full hover:scale-105 transition-all shadow-lg"
+            >
+              {currentTrack?.id === infoTrack.id && isPlaying ? <Pause fill="black" /> : <Play fill="black" />}
+            </button>
+
+            {/* Кнопка Лайк */}
+            <div className="p-2 rounded-full hover:border-white transition-colors cursor-pointer">
+              <LikeButton trackId={infoTrack.id} size={35} />
+            </div>
+
+            {/* Меню добавления в плейлист */}
+            <div className="text-white rounded-full hover:border-white transition-colors">
+              <TrackActionMenu 
+                  trackId={infoTrack.id} 
+                  isOpen={activeMenuId === infoTrack.id}
+                  onToggle={() => setActiveMenuId(activeMenuId === infoTrack.id ? null : infoTrack.id)}
+              />
+            </div>
+          </div>
         </div>
 
         <div className="h-px bg-zinc-800 w-full" />

@@ -7,19 +7,21 @@ import { formatTime } from '../utils/formatTime';
 import type { Album } from '../types';
 import { PlayingAnimation } from '../components/PlayingAnimation';
 import { MediaImage } from '../components/MediaImage';
+import { TrackActionMenu } from '../components/TrackActionMenu';
 
 export default function AlbumDetail() {
   const { id } = useParams();
   const [album, setAlbum] = useState<Album | null>(null);
   const {isPlaying, currentTrack, openInfo, togglePlay, handlePlay} = usePlayerStore();
-
+  const [activeMenuId, setActiveMenuId] = useState<number | null>(null);
+  
   useEffect(() => {
     const fetchAlbum = async () => {
       try {
         const response = await mediaApi.get(`/album/${id}`);
         setAlbum(response.data);
       } catch (err) {
-        console.error("Ошибка загрузки альбома:", err);
+        console.error("Failed to upload album:", err);
       }
     };
     fetchAlbum();
@@ -31,7 +33,7 @@ export default function AlbumDetail() {
 
     <div className="text-white pb-24">
       
-      <div className="h-80 bg-gradient-to-b from-blue-900/50 to-zinc-900 p-8 flex items-end gap-8">
+      <div className="h-80 bg-gradient-to-b from-blue-900 to-zinc-900 p-8 flex items-end gap-8">
         <div className="w-52 h-52 shadow-[0_8px_40px_rgba(0,0,0,0.5)] flex-shrink-0 bg-zinc-800 rounded-lg overflow-hidden">
             <div className="w-full h-full rounded-md overflow-hidden flex-shrink-0">
               <MediaImage imageKey={album.image_key} type="album" className="w-full h-full" />
@@ -112,8 +114,13 @@ export default function AlbumDetail() {
                     <Play size={14} fill="black" />
                   )}
                 </div>
-              <div className="text-zinc-400 text-sm w-16 flex items-center justify-end gap-2">
-                  {formatTime(track.duration_seconds)}
+              <div className="flex items-center gap-4">
+                <div className="text-zinc-400 text-sm">{formatTime(track.duration_seconds)}</div>
+                <TrackActionMenu 
+                  trackId={track.id} 
+                  isOpen={activeMenuId === track.id}
+                  onToggle={() => setActiveMenuId(activeMenuId === track.id ? null : track.id)}
+                />
               </div>
             </div>
             );

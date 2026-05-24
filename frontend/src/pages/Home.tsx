@@ -6,11 +6,13 @@ import { Play, Pause } from 'lucide-react'
 import type { Track } from '../types'
 import { PlayingAnimation } from '../components/PlayingAnimation';
 import { MediaImage } from '../components/MediaImage';
+import { useAuthStore } from '../store/useAuthStore'
 
 export default function Home() {
   const [tracks, setTracks] = useState<Track[]>([])
   const { currentTrack, openInfo, isPlaying, handlePlay } = usePlayerStore();
   const navigate = useNavigate() 
+  const {isAuthenticated, user} = useAuthStore()
 
   useEffect(() => {
     const fetchTracks = async () => {
@@ -26,7 +28,13 @@ export default function Home() {
 
   return (
     <div className="p-8">
-      <h1 className="text-3xl font-bold text-white mb-8">Welcome back!</h1>
+      {
+        isAuthenticated ? (
+          <h1 className="text-3xl font-bold text-white mb-8">Welcome back, {user?.username}!</h1>
+        ) : (
+          <h1 className="text-3xl font-bold text-white mb-8">Welcome!</h1>
+        )
+      }
       
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
         {tracks.map((track, index) => {
