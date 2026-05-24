@@ -71,11 +71,12 @@ async def post_playlist(
         if cover:
             cover_key = await get_image_key(key=gen_uuid()+'_'+str(playlist.id), file=cover)
             playlist.image_key = cover_key
-            await session.commit()
-            await session.refresh(playlist)
     except Exception as e:
         logger.error(f'Failed to upload cover for playlist: {e}')
         raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail=f'Failed to upload cover for playlist: {e}')
+
+    await session.commit()
+    await session.refresh(playlist)
 
     logger.success(f'Successfully create new playlist with {playlist_data.name} name for user with {current_user.id} id')
     return playlist
@@ -89,6 +90,10 @@ async def update_playlist(
     current_user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session)
 ):
+    playlist = await session.get(Playlist, playlist_id)
+    if not playlist or playlist.user_id != current_user.id:
+        logger.error(f'Playlist with {playlist_id} id not found for user with {current_user.id} id')
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Playlist with {playlist_id} id not found for user with {current_user.id} id')    
     
     result = await session.execute(select(Playlist).where(
         Playlist.user_id == current_user.id,
@@ -100,20 +105,15 @@ async def update_playlist(
         logger.error(f'Playlist with {playlist_data.name} name for user with {current_user.id} id already exists!')
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f'Playlist with {playlist_data.name} name for user with {current_user.id} id already exists!')
 
-
-    playlist = await session.get(Playlist, playlist_id)
-    if not playlist or playlist.user_id != current_user.id:
-        logger.error(f'Playlist with {playlist_id} id not found for user with {current_user.id} id')
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Playlist with {playlist_id} id not found for user with {current_user.id} id')    
+    playlist.name = playlist_data.name
    
     try:
         cover_key = await get_image_key(key=gen_uuid()+'_'+str(playlist.id), file=cover)
+        await default_minio_data_delete(key=playlist.image_key)
+        playlist.image_key = cover_key
     except Exception as e:
         logger.error(f'Failed to upload cover for playlist: {e}')
         raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail=f'Failed to upload cover for playlist: {e}')
-
-    playlist.name = playlist_data.name
-    playlist.image_key = cover_key
 
     await session.commit()
     await session.refresh(playlist)
@@ -130,6 +130,11 @@ async def patch_playlist(
     current_user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session)
 ):
+    playlist = await session.get(Playlist, playlist_id)
+    if not playlist or playlist.user_id != current_user.id:
+        logger.error(f'Playlist with {playlist_id} id not found for user with {current_user.id} id')
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Playlist with {playlist_id} id not found for user with {current_user.id} id')
+   
     if playlist_data.name:
         result = await session.execute(select(Playlist).where(
             Playlist.user_id == current_user.id,
@@ -140,23 +145,17 @@ async def patch_playlist(
         if result.scalar_one_or_none():
             logger.error(f'Playlist with {playlist_data.name} name for user with {current_user.id} id already exists!')
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f'Playlist with {playlist_data.name} name for user with {current_user.id} id already exists!')
+        
+        playlist.name = playlist_data.name
 
-    playlist = await session.get(Playlist, playlist_id)
-    if not playlist or playlist.user_id != current_user.id:
-        logger.error(f'Playlist with {playlist_id} id not found for user with {current_user.id} id')
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Playlist with {playlist_id} id not found for user with {current_user.id} id')
-   
     try:
         if cover:
             cover_key = await get_image_key(key=gen_uuid()+'_'+str(playlist.id), file=cover)
+            await default_minio_data_delete(key=playlist.image_key)
+            playlist.image_key = cover_key
     except Exception as e:
         logger.error(f'Failed to upload cover for playlist: {e}')
         raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail=f'Failed to upload cover for playlist: {e}')
-
-    if cover:
-        playlist.image_key = cover_key
-    if playlist_data.name:
-        playlist.name = playlist_data.name
     
     await session.commit()
     await session.refresh(playlist)
@@ -177,7 +176,8 @@ async def delete_playlist(
         logger.error(f'Playlist with {playlist_id} id not found for user with {current_user.id} id')
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Playlist with {playlist_id} id not found for user with {current_user.id} id')
 
-    await default_minio_data_delete(key=playlist.image_key)
+    if playlist.image_key:
+        await default_minio_data_delete(key=playlist.image_key)
 
     await session.delete(playlist)
     await session.commit()

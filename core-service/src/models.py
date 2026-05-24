@@ -43,7 +43,7 @@ class Playlist(Base):
     track_ids: Mapped[List[int]] = mapped_column(ARRAY(Integer), default=[])
     image_key: Mapped[Optional[str]] = mapped_column(String(500))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.timezone('UTC', func.now()), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.timezone('UTC', func.now()), server_onupdate=func.timezone('UTC', func.now()), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.timezone('UTC', func.now()), onupdate=func.timezone('UTC', func.now()), nullable=False)
 
     user: Mapped['User'] = relationship(back_populates='playlists')
 
