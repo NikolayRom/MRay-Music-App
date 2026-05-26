@@ -68,7 +68,8 @@ async def update_profile(
         user.username = user_data.new_username
         user.email = user_data.new_email
         user.hashed_password = pwd_context.hash(user_data.new_password)
-        await default_minio_data_delete(key=user.image_key)
+        if user.image_key:
+            await default_minio_data_delete(key=user.image_key)
         user.image_key = avatar_key
 
         await session.commit()
@@ -118,7 +119,8 @@ async def patch_profile(
     try:
         if avatar:
             avatar_key = await get_image_key(key=gen_uuid()+'_'+str(user.id), file=avatar)
-            await default_minio_data_delete(key=user.image_key)
+            if user.image_key:
+                await default_minio_data_delete(key=user.image_key)
             user.image_key = avatar_key
     except Exception as e:
         logger.error(f'Failed upload user avatar: {e}')
