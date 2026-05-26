@@ -10,10 +10,19 @@ from alembic import context
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 from src.config import settings
+import os
 from src.models import Base
 
+target_url = os.getenv("DATABASE_URL")
+
+if not target_url:
+    target_url = settings.POSTGRES_URL
+else:
+    if target_url.startswith("postgresql://"):
+        target_url = target_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
 config = context.config
-config.set_main_option('sqlalchemy.url', settings.POSTGRES_URL_CORE)
+config.set_main_option('sqlalchemy.url', target_url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
