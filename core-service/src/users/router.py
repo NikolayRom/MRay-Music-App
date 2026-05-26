@@ -14,6 +14,7 @@ from src.common.rbac import CurrentUser
 from src.users.utils import get_user_by_email, get_user_by_username
 from src.auth.utils import pwd_context
 from src.common.image_utils import get_image_key, gen_uuid
+from src.common.s3_utils import default_minio_data_delete
 
 router = APIRouter(prefix='/user')
 
@@ -67,6 +68,7 @@ async def update_profile(
         user.username = user_data.new_username
         user.email = user_data.new_email
         user.hashed_password = pwd_context.hash(user_data.new_password)
+        await default_minio_data_delete(key=user.image_key)
         user.image_key = avatar_key
 
         await session.commit()
@@ -93,12 +95,14 @@ async def patch_profile(
         if usr and usr.id != user.id:
             logger.error(f'User with {user_data.new_username} username already exists!')
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f'User with {user_data.new_username} username already exists!')
-    
+        user.username = user_data.new_username
+
     if user_data.new_email:
         usr = await get_user_by_email(email=user_data.new_email, session=session)
         if usr and usr.id != user.id:
             logger.error(f'User with {user_data.new_email} email already exists!')
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f'User with {user_data.new_email} email already exists!')
+        user.email = user_data.new_email
 
     if user_data.new_password and not user_data.new_password2 or not user_data.new_password and user_data.new_password2:
         logger.error(f'New password has 2 required fields, but 1 given')
@@ -107,24 +111,20 @@ async def patch_profile(
     if user_data.new_password and user_data.new_password2 and user_data.new_password != user_data.new_password2:
         logger.error(f'Invalid password2 for user {user.username}')
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f'Invalid password2 for user {user.username}')
-    
+
+    if user_data.new_password and user_data.new_password2:
+        user.hashed_password = pwd_context.hash(user_data.new_password)
+
     try:
         if avatar:
             avatar_key = await get_image_key(key=gen_uuid()+'_'+str(user.id), file=avatar)
+            await default_minio_data_delete(key=user.image_key)
+            user.image_key = avatar_key
     except Exception as e:
         logger.error(f'Failed upload user avatar: {e}')
         raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail=f'Failed upload user avatar: {e}')
     
     try:
-        if user_data.new_username:
-            user.username = user_data.new_username
-        if user_data.new_email:
-            user.email = user_data.new_email
-        if user_data.new_password:
-            user.hashed_password = pwd_context.hash(user_data.new_password)
-        if avatar:
-            user.image_key = avatar_key
-
         await session.commit()
         await session.refresh(user)
         logger.success(f'Successful update for {user.username} profile')

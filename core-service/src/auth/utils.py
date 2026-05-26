@@ -84,7 +84,7 @@ def send_reset_password_email(email_to: str, token: str):
     msg['From'] = settings.SMTP_USER
     msg['To'] = email_to
 
-    reset_link = f'http://localhost:3000/auth/password/reset?token={token}'
+    reset_link = f"http://localhost:5173/reset-password?token={token}"
 
     msg.set_content(f"""
     To reset your password, please follow the link below:
