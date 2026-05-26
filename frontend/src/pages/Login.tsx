@@ -102,6 +102,9 @@ export default function Login() {
         <p className="mt-10 text-center text-zinc-500 text-sm">
           Still not in? <Link to="/register" className="text-white font-bold hover:text-green-400 transition-colors ml-1">Sign up</Link>
         </p>
+        <p className="mt-10 text-center text-zinc-500 text-sm">
+          Don't remember? <Link to="/forgot-password" className="text-white font-bold hover:text-green-400 transition-colors ml-1">Forgot password</Link>
+        </p>
       </div>
     </div>
   );
