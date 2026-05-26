@@ -9,10 +9,9 @@ import { LikeButton } from './LikeButton';
 
 export const TrackInfoSidebar = () => {
   const { infoTrack, isRightSidebarOpen, closeInfo, isPlaying, handlePlay, currentTrack } = usePlayerStore();
-
-  if (!infoTrack) return null;
-
   const [activeMenuId, setActiveMenuId] = useState<number | null>(null);
+
+  if (!infoTrack || !isRightSidebarOpen) return null;
 
   return (
     <div className={`
@@ -45,7 +44,7 @@ export const TrackInfoSidebar = () => {
           </div>
 
           <div className="flex items-center gap-3 mt-2">
-            {/* Кнопка Play */}
+            
             <button 
               onClick={() => handlePlay([infoTrack], 0)}
               className="bg-green-500 text-black p-2 rounded-full hover:scale-105 transition-all shadow-lg"
@@ -53,12 +52,12 @@ export const TrackInfoSidebar = () => {
               {currentTrack?.id === infoTrack.id && isPlaying ? <Pause fill="black" /> : <Play fill="black" />}
             </button>
 
-            {/* Кнопка Лайк */}
+            
             <div className="p-2 rounded-full hover:border-white transition-colors cursor-pointer">
               <LikeButton trackId={infoTrack.id} size={35} />
             </div>
 
-            {/* Меню добавления в плейлист */}
+            
             <div className="text-white rounded-full hover:border-white transition-colors">
               <TrackActionMenu 
                   trackId={infoTrack.id} 
@@ -89,7 +88,7 @@ export const TrackInfoSidebar = () => {
           <div className="mt-2">
              <h4 className="text-zinc-500 mb-2 uppercase text-[10px] font-bold tracking-widest">Genres: </h4>
              <div className="flex flex-wrap gap-2">
-                {infoTrack.genre.map(g => (
+                {infoTrack.genre?.map(g => (
                   <span key={g} className="px-3 py-1 bg-zinc-800 rounded-full border border-zinc-700">{g}</span>
                 ))}
              </div>

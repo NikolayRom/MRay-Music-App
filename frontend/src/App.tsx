@@ -19,12 +19,11 @@ import { usePlaylistStore } from './store/usePlaylistStore';
 import Settings from './pages/Settings';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import Admin from './pages/Admin';
 
 export default function App() {
   const location = useLocation();
   const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
-
-  
   const { checkAuth, isAuthenticated } = useAuthStore();
   const { fetchLikes } = useInteractionStore();
   const { fetchPlaylists } = usePlaylistStore();
@@ -66,6 +65,7 @@ export default function App() {
             <Route path="/settings" element={<Settings />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/admin" element={<Admin/>}/>
           </Routes>
         </main>
         <TrackInfoSidebar />
