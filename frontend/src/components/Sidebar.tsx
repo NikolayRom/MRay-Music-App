@@ -1,6 +1,7 @@
-import { Home, Search, Library, LogIn, UserPlus, LogOut } from 'lucide-react';
+import { Home, Search, Library, LogIn, UserPlus, LogOut, SettingsIcon } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
+import { MediaImage } from './MediaImage';
 
 export const Sidebar = () => {
   const location = useLocation();
@@ -34,26 +35,43 @@ export const Sidebar = () => {
 
       <div className="mt-auto flex flex-col gap-4 pb-24">
         {isAuthenticated && user ? (
-          // Если залогинен
-          <div className="flex flex-col gap-4 p-4 bg-zinc-900 rounded-xl border border-zinc-800">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-black font-bold">
-                {user.username[0].toUpperCase()}
+          
+          <div className="flex flex-col gap-4 p-4 bg-zinc-900 rounded-xl border border-zinc-800 transition-all hover:bg-zinc-800/50 group">
+            {/* Кликабельная область профиля */}
+            <Link to="/settings" className="flex items-center gap-3 cursor-pointer">
+              <div className="relative">
+                <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-black font-bold overflow-hidden">
+                  {user.image_key ? (
+                    <MediaImage imageKey={user.image_key} type="user" className="w-full h-full" />
+                  ) : (
+                    user.username[0].toUpperCase()
+                  )}
+                </div>
+                {/* Иконка настроек, появляющаяся при наведении */}
+                <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <SettingsIcon size={16} className="text-white" />
+                </div>
               </div>
-              <div className="overflow-hidden">
-                <p className="text-white font-bold truncate">{user.username}</p>
+              
+              <div className="overflow-hidden flex-1">
+                <p className="text-white font-bold truncate group-hover:text-green-500 transition-colors">
+                  {user.username}
+                </p>
                 <p className="text-zinc-500 text-xs truncate">{user.email}</p>
               </div>
-            </div>
+            </Link>
+
+            <div className="h-px bg-zinc-800 w-full" />
+
             <button 
               onClick={logout}
-              className="flex items-center gap-2 text-zinc-400 hover:text-white transition-colors text-sm font-semibold"
+              className="flex items-center gap-2 text-zinc-400 hover:text-red-400 transition-colors text-sm font-semibold"
             >
               <LogOut size={18} /> Sign out
             </button>
           </div>
         ) : (
-          // Если НЕ залогинен
+          
           <div className="flex flex-col gap-2">
             <Link to="/login" className="flex items-center gap-3 p-3 text-zinc-400 hover:text-white transition-colors font-bold">
               <LogIn size={20} /> Sign in

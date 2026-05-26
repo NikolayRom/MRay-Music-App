@@ -16,6 +16,7 @@ interface AuthState {
   setAuth: (user: User, accessToken: string, refreshToken: string) => void;
   logout: () => void;
   checkAuth: () => Promise<void>;
+  updateUserData: (user: User) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -36,8 +37,6 @@ export const useAuthStore = create<AuthState>()(
         set({ user: null, isAuthenticated: false });
       },
 
-      // src/store/useAuthStore.ts
-
       checkAuth: async () => {
         const token = localStorage.getItem('access_token');
         if (!token) {
@@ -49,12 +48,15 @@ export const useAuthStore = create<AuthState>()(
           const response = await coreApi.get('/user/profile');
           set({ user: response.data, isAuthenticated: true });
         } catch (error) {
-          // ВАЖНО: Не удаляй здесь ничего! 
-          // Если здесь 401 ошибка, интерцептор поймает её, обновит токен и повторит запрос.
-          // Если даже рефреш не сработает, интерцептор сам сделает logout.
+             
           console.error("CheckAuth failed, waiting for interceptor...");
         }
       },
+
+      updateUserData: (updatedUser) => {
+        set({ user: updatedUser });
+      },
+
     }),
     { name: 'mray-auth-storage' }
   )

@@ -16,12 +16,15 @@ import Library from './pages/Library';
 import PlaylistDetail from './pages/PlaylistDetail';
 import HistoryPage from './pages/HistoryPage';
 import { usePlaylistStore } from './store/usePlaylistStore';
+import Settings from './pages/Settings';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 export default function App() {
   const location = useLocation();
   const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
 
-  // App.tsx
+  
   const { checkAuth, isAuthenticated } = useAuthStore();
   const { fetchLikes } = useInteractionStore();
   const { fetchPlaylists } = usePlaylistStore();
@@ -58,8 +61,11 @@ export default function App() {
             <Route path="/album/:id" element={<AlbumDetail />} />
             <Route path="/library" element={<Library />} />
             <Route path="/library/liked" element={<LikedTracks />} />
-            <Route path="/library/history" element={<HistoryPage />} /> {/* Сделай её по аналогии */}
+            <Route path="/library/history" element={<HistoryPage />} /> 
             <Route path="/playlist/:id" element={<PlaylistDetail />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
           </Routes>
         </main>
         <TrackInfoSidebar />
