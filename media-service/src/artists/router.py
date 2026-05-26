@@ -150,7 +150,7 @@ async def patch_artist(
     
     if artist_obj.name:
         name = artist_obj.name
-        if not await check_unique_artist_name(name=name, session=session):
+        if not await check_unique_artist_name(name=name, session=session) and artist.name != artist_obj.name:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f'Artist with {name} name already exist')
         artist.name = name
     

@@ -143,22 +143,35 @@ def get_track_artist_name(audio: MP3):
 def get_track_album_name(audio: MP3):
     return audio.get('TALB')
 
-async def get_track_artist_and_album_id(session: AsyncSession, artist_name: str | None = None, album_name: str | None = None):
+async def get_track_artist_and_album_id(
+    session: AsyncSession, 
+    artist_name: str | None = None, 
+    album_name: str | None = None,
+    manual_artist_id: int | None = None 
+):
     try:
-        if artist_name:
-            artist = await get_or_create_artist(session, str(artist_name))
-            logger.success(f'Successful creation or get artist {artist}')
-            if album_name:
-                album = await get_or_create_album(session, str(album_name), artist.id)
-                logger.success(f'Successful creation or get album {album}')
+        final_artist_id = manual_artist_id
+        final_album_id = None
 
-        artist_id = None if not artist_name else artist.id
-        album_id = None if not album_name else album.id
-        logger.info(f'Return {artist_id} artist and {album_id} album')
-        return (artist_id, album_id)
+        if not final_artist_id and artist_name:
+            artist = await get_or_create_artist(session, str(artist_name))
+            final_artist_id = artist.id
+            logger.success(f'Found/Created artist by name: {artist_name}')
+
+        if final_artist_id and album_name:
+            album = await get_or_create_album(session, str(album_name), final_artist_id)
+            final_album_id = album.id
+            logger.success(f'Found/Created album "{album_name}" for artist_id {final_artist_id}')
+
+        logger.info(f'Resolved: Artist ID {final_artist_id}, Album ID {final_album_id}')
+        return (final_artist_id, final_album_id)
+
     except Exception as e:
-        logger.error(f'Error {e}, while trying get or create artist {artist_name} or album {album_name}')
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f'Error {e}, while trying get or create artist {artist_name} or album {album_name}')
+        logger.error(f'Error resolving metadata: {e}')
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            detail=f'Database error during metadata resolution'
+        )
     
 def track_post_form(
     title: Optional[str] = Form(None),

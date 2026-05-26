@@ -130,19 +130,27 @@ async def post_track(
         audio = MP3(buffer)
 
         try:
-            artist_and_album_id = await get_track_artist_and_album_id(
-                artist_name=get_track_artist_name(audio=audio) if not track_data.artist_id else None,
-                album_name=get_track_album_name(audio=audio) if not track_data.album_id else None,
-                session=session
+            artist_id, album_id = await get_track_artist_and_album_id(
+                session=session,
+                artist_name=get_track_artist_name(audio=audio), 
+                album_name=get_track_album_name(audio=audio) if not track_data.album_id else None,   
+                manual_artist_id=track_data.artist_id          
             )
+
+            await file_track.seek(0)
+    
+            audio_full = MP3(file_track.file) 
+            duration = timedelta(seconds=int(audio_full.info.length))
+            
+            await file_track.seek(0)
 
             track = Track(
                 title=get_track_title(key=file_key, audio=audio) if not track_data.title else track_data.title,
                 s3_key=file_full,
                 image_key=await get_track_image_key(key=file_key, buffer=buffer, file=file_cover),
-                duration=get_track_duration(audio=audio),
-                artist_id=artist_and_album_id[0] if not track_data.artist_id else track_data.artist_id,
-                album_id=artist_and_album_id[1] if not track_data.album_id else track_data.album_id,
+                duration=duration,
+                artist_id=artist_id,
+                album_id=album_id if not track_data.album_id else track_data.album_id,
                 genre=get_track_genre(audio=audio, separators=[',', '&']) if not track_data.genre else track_data.genre,
             )
             logger.success(f'Successful creation of new track: {track}')
