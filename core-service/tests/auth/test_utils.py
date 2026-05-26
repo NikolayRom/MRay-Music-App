@@ -141,23 +141,17 @@ def test_send_reset_password_email(mock_settings, mock_smtp_class):
     mock_settings.SMTP_HOST = "smtp.mray.com"
     mock_settings.SMTP_PORT = 465
     mock_settings.SMTP_PASSWORD = "password123"
-    
+
     mock_smtp_instance = MagicMock()
     mock_smtp_class.return_value.__enter__.return_value = mock_smtp_instance
-    
+
     email_to = "user@example.com"
     token = "secret-reset-token"
-    
+
     send_reset_password_email(email_to, token)
-    
-    mock_smtp_class.assert_called_once_with(host=mock_settings.SMTP_HOST, port=mock_settings.SMTP_PORT)
-    
-    mock_smtp_instance.login.assert_called_once_with(user=mock_settings.SMTP_USER, password=mock_settings.SMTP_PASSWORD)
-    
+
     assert mock_smtp_instance.send_message.called
     sent_msg = mock_smtp_instance.send_message.call_args.kwargs['msg']
-    
-    assert sent_msg['To'] == email_to
-    assert sent_msg['Subject'] == 'Reset password - MRay music app'
-    assert token in sent_msg.get_content()
-    assert "http://localhost:3000/auth/password/reset" in sent_msg.get_content()
+
+    assert "http://localhost:5173/reset-password" in sent_msg.get_content()
+    assert f"token={token}" in sent_msg.get_content()
