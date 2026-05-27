@@ -1,24 +1,23 @@
-<img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMyMkM1NUUiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBjbGFzcz0ibHVjaWRlIGx1Y2lkZS1hdWRpby1saW5lcy1pY29uIGx1Y2lkZS1hdWRpby1saW5lcyI+PHBhdGggZD0iTTIgMTB2MyIvPjxwYXRoIGQ9Ik02IDZ2MTEiLz48cGF0aCBkPSJNMTAgM3YxOCIvPjxwYXRoIGQ9Ik0xNCA4djciLz48cGF0aCBkPSJNMTggNXYxMyIvPjxwYXRoIGQ9Ik0yMiAxMHYzIi8+PC9zdmc+" width="24" height="24" style="vertical-align: middle;"> <strong style="font-size: 20px; vertical-align: middle;">MRay</strong>
+<img src="audio-lines.svg" width="24" height="24" style="vertical-align: middle;"> <strong style="font-size: 20px; vertical-align: middle;">MRay</strong>
 
 **🔗 [Live demo](https://mray-music-app.netlify.app)**
 
-<div align="center">  
-  <img src="Demo.png" width="100%" style="border-radius: 8px;">
-  
-  <div style="display: flex; gap: 10px; justify-content: center; margin-bottom: 10px;">
-    <img src="Demo2.png" width="50%" style="border-radius: 8px;">
-    <img src="Demo3.png" width="50%" style="border-radius: 8px;">
-  </div>
-  
-  <div style="display: flex; gap: 10px; justify-content: center; margin-bottom: 10px;">
-    <img src="Demo5.png" width="50%" style="border-radius: 8px;">
-    <img src="Demo6.png" width="50%" style="border-radius: 8px;">
-  </div>
-  
-  <div style="display: flex; gap: 10px; justify-content: center;">
-    <img src="Demo7.png" width="50%" style="border-radius: 8px;">
-    <img src="Demo8.png" width="50%" style="border-radius: 8px;">
-  </div>
+<div align="center">
+  <table>
+    <img src="Demo.png" width="100%" style="border-radius: 8px;">
+    <tr>
+      <td><img src="Demo2.png" width="100%"></td>
+      <td><img src="Demo3.png" width="100%"></td>
+    </tr>
+    <tr>
+      <td><img src="Demo5.png" width="100%"></td>
+      <td><img src="Demo6.png" width="100%"></td>
+    </tr>
+    <tr>
+      <td><img src="Demo7.png" width="100%"></td>
+      <td><img src="Demo8.png" width="100%"></td>
+    </tr>
+  </table>
 </div>
 
 A high-performance, full-stack music streaming platform built with a **Microservices Architecture**. This project demonstrates modern software engineering practices, including asynchronous processing, cloud storage integration, and industry-standard security implementation. **MRay** is designed with scalability in mind, separating heavy I/O operations (streaming) from core business logic to ensure high availability and independent scaling of services.
@@ -167,7 +166,7 @@ SMTP_USER={smtp_email}
 SMTP_PASSWORD={smtp_password}
 ```
 
-Also a `.env` file in the frontend directory:
+Also add `.env` file in the frontend directory:
 
 ```Env
 VITE_CORE_API_URL=http://127.0.0.1:8081
