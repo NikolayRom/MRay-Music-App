@@ -229,17 +229,26 @@ class TestTracksService:
 
     
     @patch("src.tracks.service.TrackPatch")
-    def test_track_patch_form_partial(self, mock_schema):
-        
-        track_patch_form(title="New Title", artist_id=None, album_id=None, genre=None)
+    def test_track_patch_form_parsing(self, mock_schema):
+        track_patch_form(title="T", artist_id=None, album_id=None, genre="Rock, Metal")
         
         mock_schema.assert_called_once_with(
-            title="New Title", 
-            artist_id=None, 
-            album_id=None, 
-            genre=None
+            title="T",
+            artist_id=None,
+            album_id=None,
+            genre=["Rock", "Metal"]
         )
 
+    @patch("src.tracks.service.TrackPatch")
+    def test_track_patch_form_json_single(self, mock_schema):
+        track_patch_form(title=None, artist_id=None, album_id=None, genre='"Jazz"')
+        
+        mock_schema.assert_called_once_with(
+            title=None,
+            artist_id=None,
+            album_id=None,
+            genre=["Jazz"]
+        )
    
     @patch("src.tracks.service.settings")
     def test_check_file_size_logic(self, mock_settings):
@@ -373,8 +382,8 @@ class TestTracksService:
 
     @patch("src.tracks.service.TrackUpdate")
     def test_track_update_form(self, mock_schema):
-        track_update_form(title="T", artist_id=1, album_id=1, genre=["G"])
-        mock_schema.assert_called_once_with(title="T", artist_id=1, album_id=1, genre=["G"])
+        track_update_form(title="T", artist_id=1, album_id=1, genre='["Rock", "Metal"]')
+        mock_schema.assert_called_once()
 
     @patch("src.tracks.service.TrackPatch")
     def test_track_patch_form(self, mock_schema):

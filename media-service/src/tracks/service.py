@@ -196,7 +196,7 @@ def track_update_form(
         except (json.JSONDecodeError, TypeError):
             parsed_genres = [g.strip() for g in genre.split(",")]
 
-    return TrackPatch(
+    return TrackUpdate(
         title=title,
         artist_id=artist_id,
         album_id=album_id,

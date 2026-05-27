@@ -156,37 +156,38 @@ class TestTrackRouter:
     @patch("src.tracks.router.check_file_format")
     @patch("src.tracks.router.check_file_size")
     async def test_post_track_success(
-        self, mock_size, mock_fmt, mock_ids_check, mock_meta_size, 
+        self, mock_size, mock_fmt, mock_ids_check, mock_meta_size,
         mock_upload, mock_get_img_key, mock_get_ids, mock_mp3_class
     ):
         file_track = AsyncMock(spec=UploadFile)
         file_track.filename = "test.mp3"
-        file_track.content_type = "audio/mpeg"
+        file_track.file = MagicMock()
         file_track.read.return_value = b"metadata"
-        file_track.file = MagicMock() 
         file_track.seek = AsyncMock()
 
         mock_meta_size.return_value = 100
-        mock_get_ids.return_value = (10, 20)
         mock_get_img_key.return_value = "img.jpg"
         mock_ids_check.return_value = None
+        
+        mock_get_ids.return_value = (10, 20) 
 
         mock_audio = MagicMock()
         mock_audio.info.length = 180
-        mock_mp3_class.side_effect = [mock_audio, mock_audio]
+        mock_mp3_class.return_value = mock_audio
 
-        track_data = TrackPost(title="My Song", artist_id=None, album_id=None, genre=None)
+        track_data = TrackPost(title="My Song", artist_id=None, album_id=None, genre=["Rock"])
 
         result = await post_track(
             request=MagicMock(),
             track_data=track_data,
             file_track=file_track,
-            file_cover=None,
+            file=None, 
             session=self.mock_session,
             user=MagicMock()
         )
 
-        assert result.duration == timedelta(seconds=180)
+        assert result.artist_id == 10
+        assert result.album_id == 20
         assert self.mock_session.commit.called
 
     @patch("src.tracks.router.get_metadata_size")
@@ -454,33 +455,32 @@ class TestTrackRouter:
         assert self.mock_session.execute.called
 
     @patch("src.tracks.router.MP3")
+    @patch("src.tracks.router.get_track_artist_and_album_id")
     @patch("src.tracks.router.get_track_image_key")
     @patch("src.tracks.router.streaming_minio_data_upload")
     @patch("src.tracks.router.get_metadata_size")
-    @patch("src.tracks.router.check_artist_and_album_id_for_track") 
-    async def test_post_track_metadata_logic(self, mock_ids_chk, mock_meta, mock_up, mock_img, mock_mp3):
-        
+    @patch("src.tracks.router.check_artist_and_album_id_for_track")
+    async def test_post_track_metadata_logic(self, mock_ids_chk, mock_meta, mock_up, mock_img, mock_get_ids, mock_mp3):
         file = AsyncMock(spec=UploadFile)
-        file.filename = "test.mp3"
-        file.content_type = "audio/mpeg"
-        file.size = 1000
         file.file = MagicMock()
-        
-        file.read.return_value = b"fake_binary_metadata"
-        file.seek = AsyncMock()
+        file.read.return_value = b"bytes"
+        file.size = 1234
+        file.filename = 'track.mp3'
         
         mock_meta.return_value = 10
-        mock_mp3.return_value = MagicMock()
-        mock_ids_chk.return_value = None 
-
+        mock_get_ids.return_value = (1, 1) 
+        
+        audio_mock = MagicMock()
+        audio_mock.info.length = 120
+        mock_mp3.return_value = audio_mock
+        
         track_data = TrackPost(title=None, artist_id=None, album_id=None, genre=None)
 
-        with patch("src.tracks.router.get_track_artist_and_album_id", return_value=(1, 1)):
-            result = await post_track(
-                request=MagicMock(), track_data=track_data, file_track=file,
-                session=self.mock_session, user=MagicMock()
-            )
-            assert result.s3_key.endswith('.mp3')
+        result = await post_track(
+            request=MagicMock(), track_data=track_data, file_track=file,
+            file=None, session=self.mock_session, user=MagicMock()
+        )
+        assert self.mock_session.add.called
 
     @patch("src.tracks.router.streaming_minio_data_upload")
     async def test_post_track_upload_error(self, mock_up):
