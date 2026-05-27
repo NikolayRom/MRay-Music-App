@@ -66,7 +66,8 @@ export default function Settings() {
       
       const authHeader = btoa(unescape(encodeURIComponent(`${user?.username}:${formData.oldPassword}`)));
       
-      const response = await axios.patch('http://127.0.0.1:8081/user/profile', data, {
+      const response = await axios.patch(
+          `${import.meta.env.VITE_CORE_API_URL}/user/profile`, data, {
         headers: { 
           'Authorization': `Basic ${authHeader}`,
           'Content-Type': 'multipart/form-data'

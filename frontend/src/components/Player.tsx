@@ -72,7 +72,7 @@ export const Player = () => {
 
     useEffect(() => {
         if (currentTrack && audioRef.current) {
-            const streamUrl = `http://127.0.0.1:8000/stream/${currentTrack.id}`;
+            const streamUrl = `${import.meta.env.VITE_MEDIA_API_URL}/stream/${currentTrack.id}`;
             audioRef.current.src = streamUrl;
             
             if (isPlaying) {
@@ -104,7 +104,10 @@ export const Player = () => {
                 artist: currentTrack.artist?.name,
                 album: currentTrack.album?.name,
                 artwork: [
-                    { src: `http://localhost:9000/media-assets/${currentTrack.image_key}`, sizes: '512x512' }
+                    { src: import.meta.env.VITE_S3_PUBLIC_URL.includes('supabase.co')
+                            ? `${import.meta.env.VITE_S3_PUBLIC_URL}/object/public/media-assets/${currentTrack.image_key}`
+                            : `${import.meta.env.VITE_S3_PUBLIC_URL}/media-assets/${currentTrack.image_key}`,
+                        sizes: '512x512' }
                 ]
             });
 
