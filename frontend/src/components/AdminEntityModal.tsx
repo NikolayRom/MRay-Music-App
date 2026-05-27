@@ -21,7 +21,9 @@ export const AdminEntityModal = ({ type, item, artists, albums, onClose, onRefre
   
   const [artistId, setArtistId] = useState(item?.artist_id || '');
   const [albumId, setAlbumId] = useState(item?.album_id || '');
-  const [genre, setGenre] = useState(item?.genre?.join(', ') || '');
+  const [genre, setGenre] = useState(
+    Array.isArray(item?.genre) ? item.genre.join(', ') : ''
+  );
   
   
   const [trackFile, setTrackFile] = useState<File | null>(null);
@@ -57,7 +59,7 @@ export const AdminEntityModal = ({ type, item, artists, albums, onClose, onRefre
         if (genre) formData.append('genre', JSON.stringify(genre.split(',').map((g: string) => g.trim())));
         
         if (trackFile) formData.append('file_track', trackFile);
-        if (file) formData.append('file_cover', file);
+        if (file) formData.append('file', file);
 
         if (isEdit) await mediaApi.patch(`/track/${item.id}`, formData);
         else await mediaApi.post('/track', formData);

@@ -97,7 +97,7 @@ async def post_track(
     request: Request,
     track_data: TrackPost = Depends(track_post_form), 
     file_track: UploadFile = File(..., description='upload mp3 track'),
-    file_cover: Optional[UploadFile] = None,
+    file: Optional[UploadFile] = None,
     session: AsyncSession = Depends(get_async_session),
     user: CurrentUser = Depends(get_current_superuser)
 ):
@@ -147,7 +147,7 @@ async def post_track(
             track = Track(
                 title=get_track_title(key=file_key, audio=audio) if not track_data.title else track_data.title,
                 s3_key=file_full,
-                image_key=await get_track_image_key(key=file_key, buffer=buffer, file=file_cover),
+                image_key=await get_track_image_key(key=file_key, buffer=buffer, file=file),
                 duration=duration,
                 artist_id=artist_id,
                 album_id=album_id if not track_data.album_id else track_data.album_id,

@@ -185,14 +185,42 @@ def track_update_form(
     title: str = Form(...),
     artist_id: int = Form(...),
     album_id: int = Form(...),
-    genre: List[str] = Form(...)  
+    genre: str = Form(...)  
 ) -> TrackUpdate:
-    return TrackUpdate(title=title, artist_id=artist_id, album_id=album_id, genre=genre)
+    parsed_genres = None
+    if genre:
+        try:
+            parsed_genres = json.loads(genre)
+            if not isinstance(parsed_genres, list):
+                parsed_genres = [str(parsed_genres)]
+        except (json.JSONDecodeError, TypeError):
+            parsed_genres = [g.strip() for g in genre.split(",")]
+
+    return TrackPatch(
+        title=title,
+        artist_id=artist_id,
+        album_id=album_id,
+        genre=parsed_genres
+    )
 
 def track_patch_form(
     title: Optional[str] = Form(None),
     artist_id: Optional[int] = Form(None),
     album_id: Optional[int] = Form(None),
-    genre: Optional[List[str]] = Form(None)  
+    genre: Optional[str] = Form(None)  
 ) -> TrackPatch:
-    return TrackPatch(title=title, artist_id=artist_id, album_id=album_id, genre=genre)
+    parsed_genres = None
+    if genre:
+        try:
+            parsed_genres = json.loads(genre)
+            if not isinstance(parsed_genres, list):
+                parsed_genres = [str(parsed_genres)]
+        except (json.JSONDecodeError, TypeError):
+            parsed_genres = [g.strip() for g in genre.split(",")]
+
+    return TrackPatch(
+        title=title,
+        artist_id=artist_id,
+        album_id=album_id,
+        genre=parsed_genres
+    )
