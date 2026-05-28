@@ -94,6 +94,11 @@ def send_reset_password_email(email_to: str, token: str):
     The link is valid for 15 minutes.
     """)
 
-    with smtplib.SMTP_SSL(host=settings.SMTP_HOST, port=settings.SMTP_PORT) as smtp:
-        smtp.login(user=settings.SMTP_USER, password=settings.SMTP_PASSWORD)
-        smtp.send_message(msg=msg)
+    try:
+        with smtplib.SMTP(host=settings.SMTP_HOST, port=settings.SMTP_PORT) as smtp:
+            smtp.starttls() 
+            smtp.login(user=settings.SMTP_USER, password=settings.SMTP_PASSWORD)
+            smtp.send_message(msg=msg)
+            logger.success(f"Email sent to {email_to}")
+    except Exception as e:
+        logger.error(f"Failed to send email: {e}")
