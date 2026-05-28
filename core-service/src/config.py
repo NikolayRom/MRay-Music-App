@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     SUPERUSER_AUTO_CREATE: bool
 
     USER_HISTORY_LIFETIME_DAYS: int
+    FRONTEND_URL: str
 
     SMTP_HOST: str
     SMTP_PORT: str

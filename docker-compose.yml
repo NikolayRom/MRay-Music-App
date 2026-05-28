@@ -103,6 +103,7 @@ services:
       - JWT_RESET_TOKEN_EXPIRE_MINUTES=${JWT_RESET_TOKEN_EXPIRE_MINUTES}
       - MINIO_POLICY_URL=${MINIO_POLICY_URL}
       - JWT_MAX_SESSIONS=${JWT_MAX_SESSIONS}
+      - FRONTEND_URL=${FRONTEND_URL}
     depends_on:
       - postgres
     volumes:
