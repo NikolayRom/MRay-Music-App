@@ -60,3 +60,4 @@ urllib3==2.7.0
 uvicorn==0.46.0
 wrapt==1.17.3
 yarl==1.23.0
+resend

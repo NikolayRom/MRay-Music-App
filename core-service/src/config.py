@@ -29,10 +29,8 @@ class Settings(BaseSettings):
     USER_HISTORY_LIFETIME_DAYS: int
     FRONTEND_URL: str
 
-    SMTP_HOST: str
-    SMTP_PORT: str
-    SMTP_USER: str
-    SMTP_PASSWORD: str
+    RESEND_API_KEY: str
+    RESEND_FROM_EMAIL: str
 
     model_config = SettingsConfigDict(env_file='../.env', extra='ignore')
 

@@ -9,8 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import delete, select
 from src.common.logger import logger
 from src.common.crypt_context import CryptContext
-import smtplib
-from email.message import EmailMessage
+import resend
 
 pwd_context = CryptContext()
 
@@ -54,7 +53,7 @@ def create_refresh_token(user_id: int) -> tuple[str, RefreshToken]:
         exp=datetime.now(timezone.utc) + timedelta(days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS)
     )
     logger.info(f'Create new refresh token for user ({user_id})')
-    return (refresh_token, refresh_token_db)
+    return refresh_token, refresh_token_db
 
 async def clear_all_refresh_tokens(user_id: int, session: AsyncSession) -> None:
     await session.execute(delete(RefreshToken).where(RefreshToken.user_id == user_id))
@@ -79,26 +78,23 @@ async def get_refresh_token_from_db(token: str, session: AsyncSession) -> Refres
     return refresh_token
 
 def send_reset_password_email(email_to: str, token: str):
-    msg = EmailMessage()
-    msg['Subject'] = 'Reset password - MRay music app'
-    msg['From'] = settings.SMTP_USER
-    msg['To'] = email_to
+    resend.api_key = settings.RESEND_API_KEY
 
     reset_link = f"{settings.FRONTEND_URL}/reset-password?token={token}"
 
-    msg.set_content(f"""
-    To reset your password, please follow the link below:
-                    
-    {reset_link}
-
-    The link is valid for 15 minutes.
-    """)
-
     try:
-        with smtplib.SMTP(host=settings.SMTP_HOST, port=settings.SMTP_PORT) as smtp:
-            smtp.starttls() 
-            smtp.login(user=settings.SMTP_USER, password=settings.SMTP_PASSWORD)
-            smtp.send_message(msg=msg)
-            logger.success(f"Email sent to {email_to}")
+        resend.Emails.send({
+            "from": settings.RESEND_FROM_EMAIL,
+            "to": email_to,
+            "subject": "Reset password - MRay music app",
+            "text": f"""
+To reset your password, please follow the link below:
+
+{reset_link}
+
+The link is valid for 15 minutes.
+"""
+        })
+        logger.success(f"Email sent to {email_to}")
     except Exception as e:
         logger.error(f"Failed to send email: {e}")
