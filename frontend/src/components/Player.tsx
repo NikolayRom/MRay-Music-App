@@ -9,7 +9,7 @@ import { LikeButton } from './LikeButton';
 import { TrackActionMenu } from './TrackActionMenu';
 
 export const Player = () => {
-    const { currentTrack, isPlaying, volume, togglePlay, isMuted, toggleMute, setVolume, toggleShuffle, isShuffle, prevTrack, nextTrack, toggleRepeat, repeatMode, openInfo } = usePlayerStore();
+    const { currentTrack, isPlaying, volume, togglePlay, setPlaying, isMuted, toggleMute, setVolume, toggleShuffle, isShuffle, prevTrack, nextTrack, toggleRepeat, repeatMode, openInfo } = usePlayerStore();
     const audioRef = useRef<HTMLAudioElement>(null);
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
@@ -98,6 +98,20 @@ export const Player = () => {
     }, [volume]);
 
     useEffect(() => {
+        const audio = audioRef.current;
+        if (!audio) return;
+
+        const handleNativePlay = () => {
+            if (!usePlayerStore.getState().isPlaying) {
+                audio.pause();
+            }
+        };
+
+        audio.addEventListener('play', handleNativePlay);
+        return () => audio.removeEventListener('play', handleNativePlay);
+    }, [currentTrack?.id]);
+
+    useEffect(() => {
         if ('mediaSession' in navigator && currentTrack) {
             navigator.mediaSession.metadata = new MediaMetadata({
                 title: currentTrack.title,
@@ -111,13 +125,13 @@ export const Player = () => {
                 ]
             });
 
-            navigator.mediaSession.setActionHandler('play', togglePlay);
-            navigator.mediaSession.setActionHandler('pause', togglePlay);
+            navigator.mediaSession.setActionHandler('play', () => setPlaying(true));
+            navigator.mediaSession.setActionHandler('pause', () => setPlaying(false));
             navigator.mediaSession.setActionHandler('nexttrack', nextTrack);
             navigator.mediaSession.setActionHandler('previoustrack', handlePrev);
             navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
         }
-    }, [currentTrack, isPlaying]);
+    }, [currentTrack, isPlaying, setPlaying, nextTrack]);
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
